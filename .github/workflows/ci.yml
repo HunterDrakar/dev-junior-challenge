@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api:
+    name: API (lint, build e testes)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      # Banco descartável só para os testes de integração.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: desafio
+          POSTGRES_PASSWORD: desafio
+          POSTGRES_DB: checkin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U desafio -d checkin_test"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - name: Lint (sem --fix, para não esconder problemas)
+        run: npx eslint "{src,test}/**/*.ts"
+      - run: npm run build
+      - name: Testes unitários
+        run: npm test
+      - name: Testes e2e e de integração com PostgreSQL
+        run: npm run test:e2e
+        env:
+          TEST_DATABASE_URL: postgres://desafio:desafio@localhost:5432/checkin_test
+
+  web:
+    name: Front-end (lint, testes e build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker Compose (sobe tudo e testa de ponta a ponta)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sobe o projeto como quem vai avaliar
+        run: docker compose up --build -d
+      - name: Espera a API responder
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/checkins && exit 0
+            sleep 2
+          done
+          docker compose logs api
+          exit 1
+      - name: Check-in, duplicado, CPF inexistente e fila
+        run: |
+          set -e
+          criar() {
+            curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/checkins \
+              -H 'Content-Type: application/json' -d "{\"cpf\":\"$1\"}"
+          }
+          test "$(criar 111.111.111-11)" = 201
+          test "$(criar 22222222222)" = 201
+          test "$(criar 11111111111)" = 409
+          test "$(criar 00000000000)" = 404
+          curl -s http://localhost:3000/checkins | tee fila.json
+          grep -q '"senha":2' fila.json
+      - name: Front responde nas rotas do totem e da recepção
+        run: |
+          for rota in / /totem /recepcao; do
+            curl -sf "http://localhost:5173$rota" | grep -q '<div id="root">'
+          done
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose logs
