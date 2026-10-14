@@ -2,7 +2,7 @@
 #   web (React)        http://localhost:5173
 #   api (NestJS)       http://localhost:3000
 #   mock-service       http://localhost:4000
-#   db (PostgreSQL)    localhost:5432
+#   db (PostgreSQL)    só na rede interna do compose (a api acessa como db:5432)
 
 services:
   mock-service:
@@ -16,8 +16,8 @@ services:
       POSTGRES_USER: desafio
       POSTGRES_PASSWORD: desafio
       POSTGRES_DB: checkin
-    ports:
-      - "5432:5432"
+    # Sem "ports": o banco não precisa ser acessado de fora, e assim não conflita
+    # com um PostgreSQL que já esteja rodando na máquina.
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
