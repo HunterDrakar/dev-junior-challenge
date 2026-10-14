@@ -161,16 +161,17 @@ describe('Check-ins (e2e)', () => {
   });
 
   describe('CORS', () => {
-    it('libera o front local (http://localhost:5173)', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/checkins')
-        .set('Origin', 'http://localhost:5173')
-        .expect(200);
+    it.each(['http://localhost:5173', 'http://127.0.0.1:5173'])(
+      'libera o front local (%s)',
+      async (origem) => {
+        const resposta = await request(app.getHttpServer())
+          .get('/checkins')
+          .set('Origin', origem)
+          .expect(200);
 
-      expect(resposta.headers['access-control-allow-origin']).toBe(
-        'http://localhost:5173',
-      );
-    });
+        expect(resposta.headers['access-control-allow-origin']).toBe(origem);
+      },
+    );
 
     it('não libera outros sites', async () => {
       const resposta = await request(app.getHttpServer())
