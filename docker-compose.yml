@@ -41,6 +41,13 @@ services:
         condition: service_started
       db:
         condition: service_healthy
+    # Saudável = a API responde e consegue falar com o banco (GET /health).
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   web:
     restart: unless-stopped
@@ -51,7 +58,8 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   db_data:

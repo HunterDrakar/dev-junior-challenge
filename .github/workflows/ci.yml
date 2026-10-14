@@ -72,7 +72,7 @@ jobs:
       - name: Espera a API responder
         run: |
           for i in $(seq 1 30); do
-            curl -sf http://localhost:3000/checkins && exit 0
+            curl -sf http://localhost:3000/health && exit 0
             sleep 2
           done
           docker compose logs api
