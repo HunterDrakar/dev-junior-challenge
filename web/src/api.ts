@@ -5,6 +5,7 @@ export interface Checkin {
   cpf: string;
   nome: string;
   chegada: string; // ISO 8601
+  senha: number; // senha do dia: 1, 2, 3...
 }
 
 /** Resposta do POST /checkins: o check-in e a posição na fila de hoje. */

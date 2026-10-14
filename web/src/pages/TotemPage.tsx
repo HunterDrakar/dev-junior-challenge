@@ -8,8 +8,8 @@ import { CheckinForm } from '../components/CheckinForm';
  */
 export function TotemPage() {
   async function fazerCheckin(cpf: string) {
-    const { nome, posicao } = await criarCheckin(cpf);
-    return { nome, posicao };
+    const { nome, senha, posicao } = await criarCheckin(cpf);
+    return { nome, senha, posicao };
   }
 
   return (

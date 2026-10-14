@@ -1,5 +1,6 @@
 import type { Checkin } from '../api';
 import { mascararCpf } from '../cpf';
+import { formatarSenha } from '../senha';
 
 function horario(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', {
@@ -43,7 +44,7 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
       <h2 id="titulo-fila" className="flex items-baseline justify-between text-2xl font-extrabold">
         Fila do dia
         <span className="tabular-nums text-sm font-normal uppercase tracking-wider text-cinza">
-          por ordem de chegada
+          por ordem de senha
         </span>
       </h2>
 
@@ -79,7 +80,7 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
                 <span
                   className={`tabular-nums text-3xl font-semibold ${proximo ? 'text-dourado' : 'text-cinza'}`}
                 >
-                  {String(indice + 1).padStart(2, '0')}
+                  {formatarSenha(checkin.senha)}
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-lg font-semibold">{checkin.nome}</span>

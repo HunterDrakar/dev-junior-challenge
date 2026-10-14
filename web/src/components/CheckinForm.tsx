@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api';
 import { formatarCpf, somenteDigitos } from '../cpf';
+import { formatarSenha } from '../senha';
 
 const SEGUNDOS_PARA_REINICIAR = 10;
 
@@ -37,15 +38,21 @@ function descreverErro(erro: unknown): { titulo: string; dica: string } {
   }
 }
 
+export interface Confirmacao {
+  nome: string;
+  senha: number;
+  posicao: number;
+}
+
 interface Props {
-  onCheckin: (cpf: string) => Promise<{ nome: string; posicao: number }>;
+  onCheckin: (cpf: string) => Promise<Confirmacao>;
 }
 
 export function CheckinForm({ onCheckin }: Props) {
   const [cpf, setCpf] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const [sucesso, setSucesso] = useState<{ nome: string; posicao: number } | null>(null);
+  const [sucesso, setSucesso] = useState<Confirmacao | null>(null);
 
   const digitos = somenteDigitos(cpf);
   const faltam = 11 - digitos.length;
@@ -80,6 +87,7 @@ export function CheckinForm({ onCheckin }: Props) {
 
   if (sucesso) {
     const primeiroNome = sucesso.nome.split(' ')[0];
+    const naFrente = sucesso.posicao - 1;
     return (
       <div className="flex animate-entrar flex-col gap-6" role="status">
         <p className="tabular-nums text-sm uppercase tracking-wider text-ciano">
@@ -88,11 +96,17 @@ export function CheckinForm({ onCheckin }: Props) {
         <h2 className="text-4xl font-extrabold leading-tight md:text-5xl">
           Tudo certo, {primeiroNome}.
         </h2>
-        <p className="flex items-baseline gap-4 text-lg text-white/80">
-          <span className="text-7xl font-extrabold text-white">
-            {sucesso.posicao}º
+        <div className="flex flex-col gap-1">
+          <span className="text-sm uppercase tracking-wider text-white/80">Sua senha</span>
+          <span className="tabular-nums text-8xl font-extrabold leading-none text-dourado">
+            {formatarSenha(sucesso.senha)}
           </span>
-          <span>na fila. Aguarde ser chamado pelo nome.</span>
+        </div>
+        <p className="text-lg text-white/85">
+          {naFrente === 0
+            ? 'Você é o próximo.'
+            : `${naFrente} ${naFrente === 1 ? 'pessoa' : 'pessoas'} na sua frente.`}{' '}
+          Aguarde ser chamado pela senha.
         </p>
         <button
           type="button"
