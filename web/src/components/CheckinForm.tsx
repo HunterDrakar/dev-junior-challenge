@@ -82,7 +82,7 @@ export function CheckinForm({ onCheckin }: Props) {
     const primeiroNome = sucesso.nome.split(' ')[0];
     return (
       <div className="flex animate-entrar flex-col gap-6" role="status">
-        <p className="tabular-nums text-xs uppercase tracking-[0.2em] text-ciano">
+        <p className="tabular-nums text-sm uppercase tracking-wider text-ciano">
           Check-in confirmado
         </p>
         <h2 className="text-4xl font-extrabold leading-tight md:text-5xl">
@@ -115,7 +115,7 @@ export function CheckinForm({ onCheckin }: Props) {
   return (
     <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
       <div>
-        <p className="tabular-nums text-xs uppercase tracking-[0.2em] text-white/60">
+        <p className="tabular-nums text-sm uppercase tracking-wider text-white/80">
           Bem-vindo
         </p>
         <h2 className="mt-2 text-4xl font-extrabold leading-tight md:text-5xl">
@@ -142,7 +142,7 @@ export function CheckinForm({ onCheckin }: Props) {
           aria-describedby="cpf-ajuda"
           className="w-full border-b-2 border-white/30 bg-transparent pb-2 tabular-nums text-3xl tracking-wider text-white outline-none transition placeholder:text-white/25 focus:border-white aria-invalid:border-erro md:text-4xl"
         />
-        <p id="cpf-ajuda" className="text-sm text-white/60">
+        <p id="cpf-ajuda" className="text-sm text-white/80">
           Usamos o CPF só para localizar o seu cadastro.
         </p>
       </div>

@@ -42,7 +42,7 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
 
       <h2 id="titulo-fila" className="flex items-baseline justify-between text-2xl font-extrabold">
         Fila do dia
-        <span className="tabular-nums text-xs font-normal uppercase tracking-widest text-cinza">
+        <span className="tabular-nums text-sm font-normal uppercase tracking-wider text-cinza">
           por ordem de chegada
         </span>
       </h2>
@@ -83,13 +83,13 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-lg font-semibold">{checkin.nome}</span>
-                  <span className={`tabular-nums text-xs ${proximo ? 'text-white/60' : 'text-cinza'}`}>
+                  <span className={`tabular-nums text-sm ${proximo ? 'text-white/80' : 'text-cinza'}`}>
                     {mascararCpf(checkin.cpf)}
                   </span>
                 </span>
                 <span className="flex flex-col items-end">
                   <span className="tabular-nums text-lg">{horario(checkin.chegada)}</span>
-                  <span className={`text-xs ${proximo ? 'text-white/70' : 'text-cinza'}`}>
+                  <span className={`text-sm ${proximo ? 'text-white/85' : 'text-cinza'}`}>
                     {proximo ? 'Próximo · ' : ''}
                     {textoEspera(minutosDeEspera(checkin.chegada, agora))}
                   </span>
@@ -106,7 +106,7 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
 function Indicador({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div className="flex flex-col gap-1 bg-white px-5 py-4">
-      <span className="tabular-nums text-xs uppercase tracking-widest text-cinza">{rotulo}</span>
+      <span className="tabular-nums text-sm uppercase tracking-wider text-cinza">{rotulo}</span>
       <span className="tabular-nums text-4xl font-semibold">{valor}</span>
     </div>
   );

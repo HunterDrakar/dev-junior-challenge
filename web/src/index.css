@@ -11,11 +11,13 @@
   --color-teal: #007889;
   --color-ciano: #00b2bb;
   --color-dourado: #bd8951;
-  --color-cinza: #5b6670;
+  --color-cinza: #4a5560;
   --color-erro: #dc3545;
 
   --animate-esvaziar: esvaziar 10s linear forwards;
-  --animate-entrar: entrar 0.4s ease-out both;
+  /* backwards: depois da animação o elemento fica sem transform; com both/forwards o
+     Chrome mantém o texto numa camada da GPU e ele perde nitidez no Windows. */
+  --animate-entrar: entrar 0.4s ease-out backwards;
 
   @keyframes esvaziar {
     from { transform: scaleX(1); }
@@ -28,5 +30,5 @@
 }
 
 body {
-  @apply bg-fundo font-display text-petroleo antialiased;
+  @apply bg-fundo font-display font-medium text-petroleo;
 }
