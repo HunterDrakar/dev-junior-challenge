@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CheckinModule } from './checkin/checkin.module';
 
-@Module({})
+@Module({
+  imports: [CheckinModule],
+})
 export class AppModule {}

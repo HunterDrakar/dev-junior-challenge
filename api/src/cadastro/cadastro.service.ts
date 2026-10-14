@@ -1,4 +1,8 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 export interface Paciente {
   cpf: string;
@@ -12,7 +16,8 @@ export interface Paciente {
 @Injectable()
 export class CadastroService {
   private readonly logger = new Logger(CadastroService.name);
-  private readonly baseUrl = process.env.CADASTRO_URL ?? 'http://localhost:4000';
+  private readonly baseUrl =
+    process.env.CADASTRO_URL ?? 'http://localhost:4000';
   private readonly timeoutMs = 5000;
 
   /**
