@@ -1,16 +1,30 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { CadastroModule } from '../cadastro/cadastro.module';
 import { CheckinController } from './checkin.controller';
 import { CheckinService } from './checkin.service';
 import { CheckinRepository } from './repositories/checkin.repository';
 import { InMemoryCheckinRepository } from './repositories/in-memory-checkin.repository';
+import { PostgresCheckinRepository } from './repositories/postgres-checkin.repository';
+
+/** Com DATABASE_URL usa o Postgres; sem ela, guarda a fila em memória. */
+function criarRepositorio(): CheckinRepository {
+  const logger = new Logger('CheckinModule');
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (databaseUrl) {
+    logger.log('Fila persistida no PostgreSQL');
+    return new PostgresCheckinRepository(databaseUrl);
+  }
+  logger.warn('DATABASE_URL não definida: fila em memória');
+  return new InMemoryCheckinRepository();
+}
 
 @Module({
   imports: [CadastroModule],
   controllers: [CheckinController],
   providers: [
     CheckinService,
-    { provide: CheckinRepository, useClass: InMemoryCheckinRepository },
+    { provide: CheckinRepository, useFactory: criarRepositorio },
   ],
 })
 export class CheckinModule {}
