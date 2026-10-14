@@ -7,6 +7,9 @@ export interface Checkin {
   chegada: string; // ISO 8601
 }
 
+/** Resposta do POST /checkins: o check-in e a posição na fila de hoje. */
+export type CheckinCriado = Checkin & { posicao: number };
+
 /** Erro da API com o status HTTP (0 = sem conexão). */
 export class ApiError extends Error {
   readonly status: number;
@@ -36,8 +39,8 @@ async function request<T>(caminho: string, init?: RequestInit): Promise<T> {
   return corpo as T;
 }
 
-export function criarCheckin(cpf: string): Promise<Checkin> {
-  return request<Checkin>('/checkins', {
+export function criarCheckin(cpf: string): Promise<CheckinCriado> {
+  return request<CheckinCriado>('/checkins', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cpf }),
