@@ -51,11 +51,10 @@ export default function App() {
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-linha px-6 py-4 md:px-10">
         <span className="flex items-center gap-3 font-semibold">
-          <span
-            aria-hidden
-            className="grid size-7 place-items-center rounded bg-dourado text-lg font-extrabold text-white"
-          >
-            +
+          <span aria-hidden className="grid size-8 place-items-center rounded-md bg-dourado">
+            <svg viewBox="0 0 16 16" className="size-4 fill-petroleo">
+              <path d="M6 1h4v5h5v4h-5v5H6v-5H1V6h5z" />
+            </svg>
           </span>
           Recepção · Check-in de pacientes
         </span>
