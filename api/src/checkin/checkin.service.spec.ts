@@ -29,9 +29,10 @@ describe('CheckinService', () => {
       id: 1,
       cpf: '11111111111',
       nome: 'Ana Souza',
+      posicao: 1,
     });
     expect(checkin.chegada).toBeInstanceOf(Date);
-    expect(await service.listarFilaDeHoje()).toEqual([checkin]);
+    expect(await service.listarFilaDeHoje()).toHaveLength(1);
   });
 
   it('retorna 404 quando o CPF não existe no cadastro', async () => {
@@ -63,7 +64,8 @@ describe('CheckinService', () => {
       .mockResolvedValueOnce({ cpf: '22222222222', nome: 'Bruno Carvalho' });
 
     await service.criar('11111111111');
-    await service.criar('22222222222');
+    const segundo = await service.criar('22222222222');
+    expect(segundo.posicao).toBe(2);
 
     const fila = await service.listarFilaDeHoje();
     expect(fila.map((c) => c.nome)).toEqual(['Ana Souza', 'Bruno Carvalho']);

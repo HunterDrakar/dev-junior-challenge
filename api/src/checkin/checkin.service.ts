@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CadastroService } from '../cadastro/cadastro.service';
-import { Checkin } from './checkin.entity';
+import { Checkin, CheckinCriado } from './checkin.entity';
 import { diaLocal } from './dia';
 import {
   CheckinDuplicadoError,
@@ -18,7 +18,7 @@ export class CheckinService {
     private readonly repositorio: CheckinRepository,
   ) {}
 
-  async criar(cpf: string): Promise<Checkin> {
+  async criar(cpf: string): Promise<CheckinCriado> {
     const paciente = await this.cadastro.buscarPorCpf(cpf);
     if (!paciente) {
       throw new NotFoundException(
@@ -26,8 +26,9 @@ export class CheckinService {
       );
     }
 
+    let checkin: Checkin;
     try {
-      return await this.repositorio.salvar({
+      checkin = await this.repositorio.salvar({
         cpf,
         nome: paciente.nome,
         chegada: new Date(),
@@ -38,6 +39,12 @@ export class CheckinService {
       }
       throw erro;
     }
+
+    // A posição vai na resposta para o totem não precisar baixar a fila inteira
+    // (com nomes de outros pacientes) só para mostrar "você é o 3º".
+    const fila = await this.repositorio.listarDoDia(diaLocal(checkin.chegada));
+    const posicao = fila.findIndex((c) => c.id === checkin.id) + 1;
+    return { ...checkin, posicao };
   }
 
   listarFilaDeHoje(): Promise<Checkin[]> {
