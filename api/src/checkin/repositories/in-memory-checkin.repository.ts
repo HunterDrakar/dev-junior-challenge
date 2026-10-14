@@ -1,6 +1,6 @@
 import { Checkin, NovoCheckin } from '../checkin.entity';
 import { diaLocal } from '../dia';
-import { CheckinRepository } from './checkin.repository';
+import { CheckinDuplicadoError, CheckinRepository } from './checkin.repository';
 
 /** Fila em memória: some quando a API reinicia. */
 export class InMemoryCheckinRepository extends CheckinRepository {
@@ -8,6 +8,14 @@ export class InMemoryCheckinRepository extends CheckinRepository {
   private proximoId = 1;
 
   salvar(novo: NovoCheckin): Promise<Checkin> {
+    const dia = diaLocal(novo.chegada);
+    const duplicado = this.checkins.some(
+      (c) => c.cpf === novo.cpf && diaLocal(c.chegada) === dia,
+    );
+    if (duplicado) {
+      return Promise.reject(new CheckinDuplicadoError());
+    }
+
     const checkin = { id: this.proximoId++, ...novo };
     this.checkins.push(checkin);
     return Promise.resolve(checkin);

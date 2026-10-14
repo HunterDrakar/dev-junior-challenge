@@ -6,7 +6,10 @@ import {
 import { CadastroService } from '../cadastro/cadastro.service';
 import { Checkin } from './checkin.entity';
 import { diaLocal } from './dia';
-import { CheckinRepository } from './repositories/checkin.repository';
+import {
+  CheckinDuplicadoError,
+  CheckinRepository,
+} from './repositories/checkin.repository';
 
 @Injectable()
 export class CheckinService {
@@ -23,13 +26,18 @@ export class CheckinService {
       );
     }
 
-    const chegada = new Date();
-    const filaDeHoje = await this.repositorio.listarDoDia(diaLocal(chegada));
-    if (filaDeHoje.some((c) => c.cpf === cpf)) {
-      throw new ConflictException('Este paciente já fez check-in hoje.');
+    try {
+      return await this.repositorio.salvar({
+        cpf,
+        nome: paciente.nome,
+        chegada: new Date(),
+      });
+    } catch (erro) {
+      if (erro instanceof CheckinDuplicadoError) {
+        throw new ConflictException('Este paciente já fez check-in hoje.');
+      }
+      throw erro;
     }
-
-    return this.repositorio.salvar({ cpf, nome: paciente.nome, chegada });
   }
 
   listarFilaDeHoje(): Promise<Checkin[]> {
