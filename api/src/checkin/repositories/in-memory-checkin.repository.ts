@@ -16,7 +16,9 @@ export class InMemoryCheckinRepository extends CheckinRepository {
       return Promise.reject(new CheckinDuplicadoError());
     }
 
-    const checkin = { id: this.proximoId++, ...novo };
+    const senha =
+      this.checkins.filter((c) => diaLocal(c.chegada) === dia).length + 1;
+    const checkin = { id: this.proximoId++, ...novo, senha };
     this.checkins.push(checkin);
     return Promise.resolve(checkin);
   }
@@ -24,7 +26,7 @@ export class InMemoryCheckinRepository extends CheckinRepository {
   listarDoDia(dia: string): Promise<Checkin[]> {
     const doDia = this.checkins
       .filter((c) => diaLocal(c.chegada) === dia)
-      .sort((a, b) => a.chegada.getTime() - b.chegada.getTime());
+      .sort((a, b) => a.senha - b.senha);
     return Promise.resolve(doDia);
   }
 }

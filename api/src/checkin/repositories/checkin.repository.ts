@@ -12,9 +12,16 @@ export class CheckinDuplicadoError extends Error {
  * então dá para trocar memória por banco sem mexer na regra de negócio.
  */
 export abstract class CheckinRepository {
-  /** Lança CheckinDuplicadoError se o CPF já fez check-in no dia da chegada. */
+  /**
+   * Grava o check-in com a próxima senha do dia.
+   * Lança CheckinDuplicadoError se o CPF já fez check-in no dia da chegada.
+   */
   abstract salvar(checkin: NovoCheckin): Promise<Checkin>;
 
-  /** Check-ins de um dia (YYYY-MM-DD, horário de Brasília), por ordem de chegada. */
+  /**
+   * Check-ins de um dia (YYYY-MM-DD, horário de Brasília), na ordem das senhas.
+   * A senha é a ordem em que o check-in foi gravado; o horário de chegada é marcado
+   * um instante antes e, com requisições simultâneas, pode ficar fora de ordem.
+   */
   abstract listarDoDia(dia: string): Promise<Checkin[]>;
 }

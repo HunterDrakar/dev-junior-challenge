@@ -29,6 +29,7 @@ describe('CheckinService', () => {
       id: 1,
       cpf: '11111111111',
       nome: 'Ana Souza',
+      senha: 1,
       posicao: 1,
     });
     expect(checkin.chegada).toBeInstanceOf(Date);
@@ -65,7 +66,7 @@ describe('CheckinService', () => {
 
     await service.criar('11111111111');
     const segundo = await service.criar('22222222222');
-    expect(segundo.posicao).toBe(2);
+    expect(segundo).toMatchObject({ senha: 2, posicao: 2 });
 
     const fila = await service.listarFilaDeHoje();
     expect(fila.map((c) => c.nome)).toEqual(['Ana Souza', 'Bruno Carvalho']);
