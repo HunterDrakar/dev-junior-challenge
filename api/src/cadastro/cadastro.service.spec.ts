@@ -35,6 +35,33 @@ describe('CadastroService', () => {
     );
   });
 
+  it('remove espaços nas pontas do nome', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ cpf: '11111111111', nome: '  Ana Souza ' }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(service.buscarPorCpf('11111111111')).resolves.toMatchObject({
+      nome: 'Ana Souza',
+    });
+  });
+
+  it('usa a URL da variável CADASTRO_URL e um timeout', async () => {
+    process.env.CADASTRO_URL = 'http://cadastro.interno:4000';
+    const outro = new CadastroService();
+    delete process.env.CADASTRO_URL;
+    fetchMock.mockResolvedValue(new Response('{}', { status: 404 }));
+
+    await outro.buscarPorCpf('11111111111');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://cadastro.interno:4000/pacientes/11111111111',
+      { signal: expect.any(AbortSignal) as AbortSignal },
+    );
+  });
+
   it('retorna null quando o cadastro responde 404', async () => {
     fetchMock.mockResolvedValue(new Response('{}', { status: 404 }));
 
