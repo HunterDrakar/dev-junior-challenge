@@ -1,4 +1,4 @@
-import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { DatabaseError, Pool } from 'pg';
 import { Checkin, NovoCheckin } from '../checkin.entity';
 import { diaLocal } from '../dia';
@@ -40,11 +40,18 @@ export class PostgresCheckinRepository
   implements OnModuleInit, OnModuleDestroy
 {
   readonly armazenamento = 'postgres';
+  private readonly logger = new Logger(PostgresCheckinRepository.name);
   private readonly pool: Pool;
 
   constructor(connectionString: string) {
     super();
     this.pool = new Pool({ connectionString });
+    // Se o banco derrubar uma conexão parada no pool (reinício, queda de rede),
+    // o pool emite 'error'. Sem quem escute, o Node derruba a API inteira. Aqui
+    // só registramos: o pool descarta a conexão e abre outra na próxima consulta.
+    this.pool.on('error', (erro) => {
+      this.logger.error(`Conexão com o banco caiu: ${erro.message}`);
+    });
   }
 
   async onModuleInit() {

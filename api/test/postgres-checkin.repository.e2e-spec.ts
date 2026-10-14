@@ -54,6 +54,23 @@ descrever('PostgresCheckinRepository (banco real)', () => {
     expect(repositorio.armazenamento).toBe('postgres');
   });
 
+  it('sobrevive quando o banco derruba as conexões (ex.: reinício)', async () => {
+    await repositorio.verificarConexao(); // deixa uma conexão aberta no pool
+
+    // O banco encerra todas as conexões, menos a do próprio comando.
+    await admin.query(
+      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+        WHERE datname = current_database() AND pid <> pg_backend_pid()`,
+    );
+    await new Promise((resolver) => setTimeout(resolver, 300));
+
+    // Sem tratar o evento 'error' do pool, o Node derrubaria a API. O Jest
+    // só imprime o erro, então conferimos também que há um tratador.
+    const { pool } = repositorio as unknown as { pool: Pool };
+    expect(pool.listenerCount('error')).toBeGreaterThan(0);
+    await expect(repositorio.verificarConexao()).resolves.toBeUndefined();
+  });
+
   it('grava e devolve o check-in com a senha 1', async () => {
     const checkin = await repositorio.salvar(novo('11111111111'));
 
