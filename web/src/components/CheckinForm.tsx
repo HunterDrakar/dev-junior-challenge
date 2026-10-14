@@ -23,7 +23,8 @@ function descreverErro(erro: unknown): { titulo: string; dica: string } {
       };
     case 400:
       return { titulo: 'CPF inválido', dica: erro.message };
-    case 503:
+    case 502: // o cadastro respondeu algo inválido
+    case 503: // o cadastro está fora do ar
       return {
         titulo: 'Cadastro indisponível',
         dica: 'Tente de novo em instantes ou procure a recepção.',

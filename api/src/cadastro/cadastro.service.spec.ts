@@ -1,4 +1,8 @@
-import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { CadastroService } from './cadastro.service';
 
 describe('CadastroService', () => {
@@ -42,6 +46,22 @@ describe('CadastroService', () => {
 
     await expect(service.buscarPorCpf('11111111111')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
+    );
+  });
+
+  it.each([
+    ['o corpo não é JSON', 'isto não é json'],
+    ['falta o nome', JSON.stringify({ cpf: '11111111111' })],
+    ['o nome está vazio', JSON.stringify({ cpf: '11111111111', nome: '  ' })],
+    [
+      'o CPF da resposta é de outro paciente',
+      JSON.stringify({ cpf: '22222222222', nome: 'Bruno Carvalho' }),
+    ],
+  ])('lança 502 quando %s', async (_caso, corpo) => {
+    fetchMock.mockResolvedValue(new Response(corpo, { status: 200 }));
+
+    await expect(service.buscarPorCpf('11111111111')).rejects.toBeInstanceOf(
+      BadGatewayException,
     );
   });
 
