@@ -28,6 +28,8 @@ services:
 
   api:
     build: ./api
+    # Se a API cair (ex.: o banco ficou fora do ar por um instante), o Docker a sobe de novo.
+    restart: unless-stopped
     environment:
       # Dentro da rede do compose os serviços se chamam pelo nome.
       CADASTRO_URL: http://mock-service:4000
@@ -41,6 +43,7 @@ services:
         condition: service_healthy
 
   web:
+    restart: unless-stopped
     build:
       context: ./web
       args:
