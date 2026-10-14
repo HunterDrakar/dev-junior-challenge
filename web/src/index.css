@@ -1,18 +1,18 @@
 @import 'tailwindcss';
 
-/* Identidade visual: sinalização hospitalar — papel claro, azul-tinta e laranja de sinal. */
+/* Paleta inspirada no site do hospital (sem logo, que é marca de terceiros).
+   A fonte do site é a Gotham (paga); a Montserrat é a alternativa gratuita mais próxima. */
 @theme {
-  --font-display: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: 'Montserrat', ui-sans-serif, sans-serif;
 
-  --color-papel: #f3efe6;
-  --color-papel-escuro: #e8e2d4;
-  --color-linha: #d6cebd;
-  --color-tinta: #10232e;
-  --color-tinta-suave: #1b3644;
-  --color-cinza: #5f6f75;
-  --color-sinal: #e4572e;
-  --color-ok: #2f8f6b;
+  --color-fundo: #f5f5f5;
+  --color-linha: #e2e0e1;
+  --color-petroleo: #003b4e;
+  --color-teal: #007889;
+  --color-ciano: #00b2bb;
+  --color-dourado: #bd8951;
+  --color-cinza: #5b6670;
+  --color-erro: #dc3545;
 
   --animate-esvaziar: esvaziar 10s linear forwards;
   --animate-entrar: entrar 0.4s ease-out both;
@@ -28,5 +28,5 @@
 }
 
 body {
-  @apply bg-papel font-display text-tinta antialiased;
+  @apply bg-fundo font-display text-petroleo antialiased;
 }

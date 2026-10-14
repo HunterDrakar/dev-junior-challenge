@@ -42,13 +42,13 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
 
       <h2 id="titulo-fila" className="flex items-baseline justify-between text-2xl font-extrabold">
         Fila do dia
-        <span className="font-mono text-xs font-normal uppercase tracking-widest text-cinza">
+        <span className="tabular-nums text-xs font-normal uppercase tracking-widest text-cinza">
           por ordem de chegada
         </span>
       </h2>
 
       {erro && (
-        <p role="alert" className="flex flex-col gap-1 border-l-4 border-sinal bg-sinal/10 px-4 py-3">
+        <p role="alert" className="flex flex-col gap-1 border-l-4 border-erro bg-erro/10 px-4 py-3">
           <strong>Não foi possível atualizar a fila.</strong>
           <span className="text-sm text-cinza">{erro} Tentando de novo automaticamente.</span>
         </p>
@@ -73,23 +73,23 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
               <li
                 key={checkin.id}
                 className={`grid animate-entrar grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-linha py-4 ${
-                  proximo ? '-mx-4 rounded-lg border-transparent bg-tinta px-4 text-papel' : ''
+                  proximo ? '-mx-4 rounded-lg border-transparent bg-petroleo px-4 text-white' : ''
                 }`}
               >
                 <span
-                  className={`font-mono text-3xl font-semibold ${proximo ? 'text-sinal' : 'text-cinza'}`}
+                  className={`tabular-nums text-3xl font-semibold ${proximo ? 'text-dourado' : 'text-cinza'}`}
                 >
                   {String(indice + 1).padStart(2, '0')}
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-lg font-semibold">{checkin.nome}</span>
-                  <span className={`font-mono text-xs ${proximo ? 'text-papel/60' : 'text-cinza'}`}>
+                  <span className={`tabular-nums text-xs ${proximo ? 'text-white/60' : 'text-cinza'}`}>
                     {mascararCpf(checkin.cpf)}
                   </span>
                 </span>
                 <span className="flex flex-col items-end">
-                  <span className="font-mono text-lg">{horario(checkin.chegada)}</span>
-                  <span className={`text-xs ${proximo ? 'text-papel/70' : 'text-cinza'}`}>
+                  <span className="tabular-nums text-lg">{horario(checkin.chegada)}</span>
+                  <span className={`text-xs ${proximo ? 'text-white/70' : 'text-cinza'}`}>
                     {proximo ? 'Próximo · ' : ''}
                     {textoEspera(minutosDeEspera(checkin.chegada, agora))}
                   </span>
@@ -105,9 +105,9 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
 
 function Indicador({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
-    <div className="flex flex-col gap-1 bg-papel px-5 py-4">
-      <span className="font-mono text-xs uppercase tracking-widest text-cinza">{rotulo}</span>
-      <span className="font-mono text-4xl font-semibold">{valor}</span>
+    <div className="flex flex-col gap-1 bg-white px-5 py-4">
+      <span className="tabular-nums text-xs uppercase tracking-widest text-cinza">{rotulo}</span>
+      <span className="tabular-nums text-4xl font-semibold">{valor}</span>
     </div>
   );
 }

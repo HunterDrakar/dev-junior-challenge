@@ -82,14 +82,14 @@ export function CheckinForm({ onCheckin }: Props) {
     const primeiroNome = sucesso.nome.split(' ')[0];
     return (
       <div className="flex animate-entrar flex-col gap-6" role="status">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-ok">
+        <p className="tabular-nums text-xs uppercase tracking-[0.2em] text-ciano">
           Check-in confirmado
         </p>
         <h2 className="text-4xl font-extrabold leading-tight md:text-5xl">
           Tudo certo, {primeiroNome}.
         </h2>
-        <p className="flex items-baseline gap-4 text-lg text-papel/80">
-          <span className="text-7xl font-extrabold text-papel">
+        <p className="flex items-baseline gap-4 text-lg text-white/80">
+          <span className="text-7xl font-extrabold text-white">
             {sucesso.posicao}º
           </span>
           <span>na fila. Aguarde ser chamado pelo nome.</span>
@@ -97,12 +97,12 @@ export function CheckinForm({ onCheckin }: Props) {
         <button
           type="button"
           onClick={reiniciar}
-          className="self-start rounded-full border border-papel/40 px-6 py-3 font-semibold transition hover:bg-papel hover:text-tinta"
+          className="self-start rounded-full border border-white/40 px-6 py-3 font-semibold transition hover:bg-white hover:text-petroleo"
         >
           Novo check-in
         </button>
         <div
-          className="h-1 origin-left animate-esvaziar rounded-full bg-ok"
+          className="h-1 origin-left animate-esvaziar rounded-full bg-ciano"
           style={{ animationDuration: `${SEGUNDOS_PARA_REINICIAR}s` }}
           aria-hidden
         />
@@ -115,7 +115,7 @@ export function CheckinForm({ onCheckin }: Props) {
   return (
     <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
       <div>
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-papel/60">
+        <p className="tabular-nums text-xs uppercase tracking-[0.2em] text-white/60">
           Bem-vindo
         </p>
         <h2 className="mt-2 text-4xl font-extrabold leading-tight md:text-5xl">
@@ -124,7 +124,7 @@ export function CheckinForm({ onCheckin }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="cpf" className="text-sm font-semibold text-papel/80">
+        <label htmlFor="cpf" className="text-sm font-semibold text-white/80">
           Digite seu CPF
         </label>
         <input
@@ -140,9 +140,9 @@ export function CheckinForm({ onCheckin }: Props) {
           }}
           aria-invalid={Boolean(erro)}
           aria-describedby="cpf-ajuda"
-          className="w-full border-b-2 border-papel/30 bg-transparent pb-2 font-mono text-3xl tracking-wider text-papel outline-none transition placeholder:text-papel/20 focus:border-papel aria-invalid:border-sinal md:text-4xl"
+          className="w-full border-b-2 border-white/30 bg-transparent pb-2 tabular-nums text-3xl tracking-wider text-white outline-none transition placeholder:text-white/25 focus:border-white aria-invalid:border-erro md:text-4xl"
         />
-        <p id="cpf-ajuda" className="text-sm text-papel/60">
+        <p id="cpf-ajuda" className="text-sm text-white/60">
           Usamos o CPF só para localizar o seu cadastro.
         </p>
       </div>
@@ -150,17 +150,17 @@ export function CheckinForm({ onCheckin }: Props) {
       {erro !== null && (
         <div
           role="alert"
-          className="flex animate-entrar flex-col gap-1 border-l-4 border-sinal bg-sinal/15 px-4 py-3"
+          className="flex animate-entrar flex-col gap-1 border-l-4 border-erro bg-erro/15 px-4 py-3"
         >
           <strong>{titulo}</strong>
-          <span className="text-sm text-papel/80">{dica}</span>
+          <span className="text-sm text-white/80">{dica}</span>
         </div>
       )}
 
       <button
         type="submit"
         disabled={faltam > 0 || enviando}
-        className="rounded-full bg-sinal px-8 py-4 text-lg font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-papel/10 disabled:text-papel/50"
+        className="rounded-full bg-dourado px-8 py-4 text-lg font-bold text-petroleo transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/50"
       >
         {enviando
           ? 'Buscando cadastro…'

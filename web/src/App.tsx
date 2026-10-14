@@ -53,19 +53,19 @@ export default function App() {
         <span className="flex items-center gap-3 font-semibold">
           <span
             aria-hidden
-            className="grid size-7 place-items-center rounded bg-sinal text-lg font-extrabold text-white"
+            className="grid size-7 place-items-center rounded bg-dourado text-lg font-extrabold text-white"
           >
             +
           </span>
           Recepção · Check-in de pacientes
         </span>
-        <span className="hidden font-mono text-sm text-cinza first-letter:uppercase sm:block">{hoje}</span>
+        <span className="hidden tabular-nums text-sm text-cinza first-letter:uppercase sm:block">{hoje}</span>
       </header>
 
       <main className="grid flex-1 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <section
           aria-label="Totem de check-in"
-          className="flex flex-col justify-center bg-tinta p-6 text-papel md:p-12"
+          className="flex flex-col justify-center bg-petroleo p-6 text-white md:p-12"
         >
           <CheckinForm onCheckin={fazerCheckin} />
         </section>

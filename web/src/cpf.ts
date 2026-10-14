@@ -11,7 +11,7 @@ export function formatarCpf(valor: string): string {
     .replace(/\.(\d{3})(\d)/, '.$1-$2');
 }
 
-/** Esconde o começo e o fim do CPF na lista da recepção: "•••.111.111-••". */
+/** Esconde o começo e o fim do CPF na lista da recepção: "***.111.111-**". */
 export function mascararCpf(cpf: string): string {
-  return `•••.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-••`;
+  return `***.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-**`;
 }
