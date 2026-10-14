@@ -160,12 +160,25 @@ describe('Check-ins (e2e)', () => {
     });
   });
 
-  it('libera CORS para o front chamar a API de outra porta', async () => {
-    const resposta = await request(app.getHttpServer())
-      .get('/checkins')
-      .set('Origin', 'http://localhost:5173')
-      .expect(200);
+  describe('CORS', () => {
+    it('libera o front local (http://localhost:5173)', async () => {
+      const resposta = await request(app.getHttpServer())
+        .get('/checkins')
+        .set('Origin', 'http://localhost:5173')
+        .expect(200);
 
-    expect(resposta.headers['access-control-allow-origin']).toBe('*');
+      expect(resposta.headers['access-control-allow-origin']).toBe(
+        'http://localhost:5173',
+      );
+    });
+
+    it('não libera outros sites', async () => {
+      const resposta = await request(app.getHttpServer())
+        .get('/checkins')
+        .set('Origin', 'https://site-qualquer.example')
+        .expect(200);
+
+      expect(resposta.headers['access-control-allow-origin']).toBeUndefined();
+    });
   });
 });
