@@ -12,6 +12,12 @@ export class CheckinDuplicadoError extends Error {
  * então dá para trocar memória por banco sem mexer na regra de negócio.
  */
 export abstract class CheckinRepository {
+  /** Onde a fila fica guardada, para o /health dizer. */
+  abstract readonly armazenamento: 'postgres' | 'memoria';
+
+  /** Lança um erro se o armazenamento não estiver respondendo. */
+  abstract verificarConexao(): Promise<void>;
+
   /**
    * Grava o check-in com a próxima senha do dia.
    * Lança CheckinDuplicadoError se o CPF já fez check-in no dia da chegada.

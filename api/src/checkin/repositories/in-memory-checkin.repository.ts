@@ -4,6 +4,7 @@ import { CheckinDuplicadoError, CheckinRepository } from './checkin.repository';
 
 /** Fila em memória: some quando a API reinicia. */
 export class InMemoryCheckinRepository extends CheckinRepository {
+  readonly armazenamento = 'memoria';
   private readonly checkins: Checkin[] = [];
   private proximoId = 1;
 
@@ -21,6 +22,10 @@ export class InMemoryCheckinRepository extends CheckinRepository {
     const checkin = { id: this.proximoId++, ...novo, senha };
     this.checkins.push(checkin);
     return Promise.resolve(checkin);
+  }
+
+  verificarConexao(): Promise<void> {
+    return Promise.resolve(); // memória está sempre disponível
   }
 
   listarDoDia(dia: string): Promise<Checkin[]> {

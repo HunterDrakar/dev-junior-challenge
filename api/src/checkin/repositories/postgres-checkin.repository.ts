@@ -39,6 +39,7 @@ export class PostgresCheckinRepository
   extends CheckinRepository
   implements OnModuleInit, OnModuleDestroy
 {
+  readonly armazenamento = 'postgres';
   private readonly pool: Pool;
 
   constructor(connectionString: string) {
@@ -80,6 +81,10 @@ export class PostgresCheckinRepository
         }
       }
     }
+  }
+
+  async verificarConexao(): Promise<void> {
+    await this.pool.query('SELECT 1');
   }
 
   async listarDoDia(dia: string): Promise<Checkin[]> {

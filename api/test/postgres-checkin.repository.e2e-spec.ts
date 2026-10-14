@@ -49,6 +49,11 @@ descrever('PostgresCheckinRepository (banco real)', () => {
     await admin?.end();
   });
 
+  it('verificarConexao responde quando o banco está no ar', async () => {
+    await expect(repositorio.verificarConexao()).resolves.toBeUndefined();
+    expect(repositorio.armazenamento).toBe('postgres');
+  });
+
   it('grava e devolve o check-in com a senha 1', async () => {
     const checkin = await repositorio.salvar(novo('11111111111'));
 

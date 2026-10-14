@@ -26,5 +26,6 @@ function criarRepositorio(): CheckinRepository {
     CheckinService,
     { provide: CheckinRepository, useFactory: criarRepositorio },
   ],
+  exports: [CheckinRepository],
 })
 export class CheckinModule {}
