@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+/* Identidade visual: sinalização hospitalar — papel claro, azul-tinta e laranja de sinal. */
+@theme {
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-papel: #f3efe6;
+  --color-papel-escuro: #e8e2d4;
+  --color-linha: #d6cebd;
+  --color-tinta: #10232e;
+  --color-tinta-suave: #1b3644;
+  --color-cinza: #5f6f75;
+  --color-sinal: #e4572e;
+  --color-ok: #2f8f6b;
+
+  --animate-esvaziar: esvaziar 10s linear forwards;
+  --animate-entrar: entrar 0.4s ease-out both;
+
+  @keyframes esvaziar {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
+  @keyframes entrar {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+body {
+  @apply bg-papel font-display text-tinta antialiased;
+}
