@@ -83,6 +83,8 @@ describe('CheckinForm', () => {
     [502, 'Cadastro indisponível', 'Tente de novo em instantes ou procure a recepção.'],
     [503, 'Cadastro indisponível', 'Tente de novo em instantes ou procure a recepção.'],
     [0, 'Sem conexão com o sistema', 'Procure a recepção.'],
+    [500, 'Sistema indisponível', 'Tente de novo em instantes ou procure a recepção.'],
+    [418, 'Algo deu errado', 'Tente novamente ou procure a recepção.'],
   ])('erro %i: mostra "%s" e o que fazer', async (status, titulo, dica) => {
     const { user, campo } = renderizar(
       vi.fn().mockRejectedValue(new ApiError('mensagem da API', status)),
@@ -95,6 +97,7 @@ describe('CheckinForm', () => {
     expect(alerta).toHaveTextContent(dica);
     expect(campo).toHaveAttribute('aria-invalid', 'true');
     expect(campo).toHaveValue('111.111.111-11'); // não apaga o que a pessoa digitou
+    expect(alerta).not.toHaveTextContent('mensagem da API'); // nunca o texto cru
   });
 
   it('some com o erro quando a pessoa volta a digitar', async () => {

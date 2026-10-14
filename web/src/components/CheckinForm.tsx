@@ -35,7 +35,14 @@ function descreverErro(erro: unknown): { titulo: string; dica: string } {
         dica: 'Procure a recepção.',
       };
     default:
-      return { titulo: 'Algo deu errado', dica: erro.message };
+      // Erro não previsto: nunca mostrar o texto cru da API (ex.: "Internal
+      // server error") para o paciente.
+      return erro.status >= 500
+        ? {
+            titulo: 'Sistema indisponível',
+            dica: 'Tente de novo em instantes ou procure a recepção.',
+          }
+        : { titulo: 'Algo deu errado', dica: 'Tente novamente ou procure a recepção.' };
   }
 }
 
