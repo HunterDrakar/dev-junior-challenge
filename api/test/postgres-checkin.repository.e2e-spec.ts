@@ -35,13 +35,13 @@ descrever('PostgresCheckinRepository (banco real)', () => {
       throw new Error('TEST_DATABASE_URL precisa ser um banco de teste');
     }
     admin = new Pool({ connectionString: url });
-    await admin.query('DROP TABLE IF EXISTS checkins');
+    await admin.query('DROP TABLE IF EXISTS checkins, senhas_do_dia');
     repositorio = new PostgresCheckinRepository(url);
-    await repositorio.onModuleInit(); // cria a tabela
+    await repositorio.onModuleInit(); // cria as tabelas
   });
 
   beforeEach(async () => {
-    await admin.query('TRUNCATE checkins RESTART IDENTITY');
+    await admin.query('TRUNCATE checkins, senhas_do_dia RESTART IDENTITY');
   });
 
   afterAll(async () => {
@@ -69,6 +69,20 @@ descrever('PostgresCheckinRepository (banco real)', () => {
     const { pool } = repositorio as unknown as { pool: Pool };
     expect(pool.listenerCount('error')).toBeGreaterThan(0);
     await expect(repositorio.verificarConexao()).resolves.toBeUndefined();
+  });
+
+  it('banco antigo, sem o contador: continua a contagem do dia', async () => {
+    // Simula um banco criado antes do contador: check-ins com senhas 1 e 2.
+    await admin.query('DROP TABLE senhas_do_dia');
+    await admin.query(
+      `INSERT INTO checkins (cpf, nome, chegada, dia, senha) VALUES
+         ('11111111111', 'Ana', now(), '2026-10-14', 1),
+         ('22222222222', 'Bruno', now(), '2026-10-14', 2)`,
+    );
+
+    await repositorio.onModuleInit(); // recria o contador a partir do que existe
+
+    expect((await repositorio.salvar(novo('33333333333'))).senha).toBe(3);
   });
 
   it('grava e devolve o check-in com a senha 1', async () => {
@@ -113,13 +127,19 @@ descrever('PostgresCheckinRepository (banco real)', () => {
     ]);
   });
 
-  it('20 check-ins simultâneos recebem as senhas 1 a 20, sem repetir', async () => {
-    const resultados = await Promise.all(
-      cpfs(20).map((cpf) => repositorio.salvar(novo(cpf))),
+  it('50 check-ins simultâneos recebem as senhas 1 a 50, sem repetir nem falhar', async () => {
+    // allSettled: mesmo se algum falhar, espera todos terminarem antes do
+    // próximo teste (senão um INSERT atrasado sujaria o teste seguinte).
+    const resultados = await Promise.allSettled(
+      cpfs(50).map((cpf) => repositorio.salvar(novo(cpf))),
     );
 
-    const senhas = resultados.map((c) => c.senha).sort((a, b) => a - b);
-    expect(senhas).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    const falhas = resultados.filter((r) => r.status === 'rejected');
+    expect(falhas).toEqual([]);
+    const senhas = resultados
+      .map((r) => (r.status === 'fulfilled' ? r.value.senha : 0))
+      .sort((a, b) => a - b);
+    expect(senhas).toEqual(Array.from({ length: 50 }, (_, i) => i + 1));
   });
 
   it('o mesmo CPF 5 vezes ao mesmo tempo entra uma vez só', async () => {

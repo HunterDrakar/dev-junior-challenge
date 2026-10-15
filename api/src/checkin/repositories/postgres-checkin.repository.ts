@@ -8,7 +8,6 @@ import { CheckinDuplicadoError, CheckinRepository } from './checkin.repository';
 const VIOLACAO_UNICA = '23505';
 const CONSTRAINT_CPF_NO_DIA = 'checkins_dia_cpf_unico';
 const CONSTRAINT_SENHA_NO_DIA = 'checkins_dia_senha_unica';
-const TENTATIVAS_DE_SENHA = 5;
 
 interface CheckinRow {
   id: number;
@@ -21,7 +20,13 @@ interface CheckinRow {
 // "dia" é a data da chegada no horário de Brasília. As constraints únicas
 // garantem, mesmo com requisições simultâneas, um check-in por paciente por dia
 // e uma senha por dia. O índice de (dia, cpf) também atende a listagem da fila.
+// senhas_do_dia guarda a última senha emitida em cada dia (como uma sequence
+// que recomeça todo dia).
 const CRIAR_TABELA = `
+  CREATE TABLE IF NOT EXISTS senhas_do_dia (
+    dia     DATE    PRIMARY KEY,
+    ultima  INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS checkins (
     id      SERIAL       PRIMARY KEY,
     cpf     CHAR(11)     NOT NULL,
@@ -32,6 +37,10 @@ const CRIAR_TABELA = `
     CONSTRAINT ${CONSTRAINT_CPF_NO_DIA} UNIQUE (dia, cpf),
     CONSTRAINT ${CONSTRAINT_SENHA_NO_DIA} UNIQUE (dia, senha)
   );
+  -- Banco que já tinha check-ins antes do contador: começa de onde parou.
+  INSERT INTO senhas_do_dia (dia, ultima)
+  SELECT dia, MAX(senha) FROM checkins GROUP BY dia
+  ON CONFLICT (dia) DO NOTHING;
 `;
 
 /** Fila persistida no PostgreSQL (usada quando DATABASE_URL está definida). */
@@ -63,30 +72,32 @@ export class PostgresCheckinRepository
   }
 
   async salvar(novo: NovoCheckin): Promise<Checkin> {
-    // A senha é a maior do dia + 1, calculada no próprio INSERT. Se dois check-ins
-    // simultâneos pegarem o mesmo número, a constraint recusa um deles e ele tenta
-    // de novo, já enxergando a senha que o outro gravou.
-    for (let tentativa = 1; ; tentativa++) {
-      try {
-        const { rows } = await this.pool.query<CheckinRow>(
-          `INSERT INTO checkins (cpf, nome, chegada, dia, senha)
-           VALUES ($1, $2, $3, $4,
-                   (SELECT COALESCE(MAX(senha), 0) + 1 FROM checkins WHERE dia = $4))
-           RETURNING id, cpf, nome, chegada, senha`,
-          [novo.cpf, novo.nome, novo.chegada, diaLocal(novo.chegada)],
-        );
-        return rows[0];
-      } catch (erro) {
-        if (!(erro instanceof DatabaseError) || erro.code !== VIOLACAO_UNICA) {
-          throw erro;
-        }
-        if (erro.constraint === CONSTRAINT_CPF_NO_DIA) {
-          throw new CheckinDuplicadoError();
-        }
-        if (tentativa >= TENTATIVAS_DE_SENHA) {
-          throw erro;
-        }
+    // Um comando só: incrementa o contador do dia e grava o check-in com essa
+    // senha. O Postgres trava a linha do contador, então check-ins simultâneos
+    // pegam a senha um de cada vez, sem colisão. Se o check-in for recusado
+    // (CPF duplicado), o comando inteiro é desfeito e a senha não é consumida.
+    try {
+      const { rows } = await this.pool.query<CheckinRow>(
+        `WITH proxima AS (
+           INSERT INTO senhas_do_dia (dia, ultima) VALUES ($4, 1)
+           ON CONFLICT (dia) DO UPDATE SET ultima = senhas_do_dia.ultima + 1
+           RETURNING ultima
+         )
+         INSERT INTO checkins (cpf, nome, chegada, dia, senha)
+         SELECT $1, $2, $3, $4, ultima FROM proxima
+         RETURNING id, cpf, nome, chegada, senha`,
+        [novo.cpf, novo.nome, novo.chegada, diaLocal(novo.chegada)],
+      );
+      return rows[0];
+    } catch (erro) {
+      if (
+        erro instanceof DatabaseError &&
+        erro.code === VIOLACAO_UNICA &&
+        erro.constraint === CONSTRAINT_CPF_NO_DIA
+      ) {
+        throw new CheckinDuplicadoError();
       }
+      throw erro;
     }
   }
 
