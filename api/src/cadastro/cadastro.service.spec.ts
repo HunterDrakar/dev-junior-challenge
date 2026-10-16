@@ -93,12 +93,10 @@ describe('CadastroService', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('outro 4xx: 503, sem tentar de novo (não é instabilidade)', async () => {
+    it('outro 4xx: 502, sem tentar de novo (não é instabilidade)', async () => {
       fetchMock.mockResolvedValue(status(400));
 
-      await expect(buscar()).rejects.toBeInstanceOf(
-        ServiceUnavailableException,
-      );
+      await expect(buscar()).rejects.toBeInstanceOf(BadGatewayException);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
@@ -155,33 +153,37 @@ describe('CadastroService', () => {
       );
     });
 
-    it('espera ~200 ms e depois ~400 ms entre as tentativas', async () => {
+    it('espera 200 ms e depois 400 ms entre as tentativas (mais o aleatório)', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const esperas = jest.spyOn(global, 'setTimeout');
       fetchMock.mockRejectedValue(erroDeRede());
 
       await expect(buscar()).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
 
-      const esperas = avisos.mock.calls.map(([mensagem]: [string]) =>
-        Number(/nova tentativa em (\d+) ms/.exec(mensagem)?.[1]),
-      );
-      expect(esperas).toHaveLength(2);
-      expect(esperas[0]).toBeGreaterThanOrEqual(200);
-      expect(esperas[0]).toBeLessThan(300);
-      expect(esperas[1]).toBeGreaterThanOrEqual(400);
-      expect(esperas[1]).toBeLessThan(500);
+      expect(esperas.mock.calls.map(([, ms]) => ms)).toEqual([200, 400]);
     });
 
-    it('não coloca CPF nem nome nos logs', async () => {
-      fetchMock.mockResolvedValue(status(500));
+    it.each([
+      ['instabilidade (500)', () => status(500)],
+      [
+        'resposta de outro paciente',
+        () => ok({ cpf: '22222222222', nome: 'Ana Souza' }),
+      ],
+      ['4xx inesperado', () => status(400)],
+    ])('não coloca CPF nem nome nos logs: %s', async (_caso, resposta) => {
+      fetchMock.mockImplementation(() => Promise.resolve(resposta()));
 
       await buscar().catch(() => undefined);
 
       const chamadas = [avisos, erros].flatMap(
         (espiao) => espiao.mock.calls as unknown[][],
       );
-      const logs = chamadas.flat().join(' ');
-      expect(logs).not.toMatch(/11111111111|Ana/);
+      expect(chamadas.length).toBeGreaterThan(0);
+      expect(chamadas.flat().join(' ')).not.toMatch(
+        /11111111111|22222222222|Ana/,
+      );
     });
   });
 });
