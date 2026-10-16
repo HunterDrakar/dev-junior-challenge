@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Um push novo na mesma branch cancela a execução anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   api:
@@ -34,8 +40,7 @@ jobs:
           cache: npm
           cache-dependency-path: api/package-lock.json
       - run: npm ci
-      - name: Lint (sem --fix, para não esconder problemas)
-        run: npx eslint "{src,test}/**/*.ts"
+      - run: npm run lint
       - run: npm run build
       - name: Testes unitários
         run: npm test
@@ -67,16 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Sobe o projeto como quem vai avaliar
-        run: docker compose up --build -d
-      - name: Espera a API responder
-        run: |
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:3000/health && exit 0
-            sleep 2
-          done
-          docker compose logs api
-          exit 1
+      - name: Sobe o projeto como quem vai avaliar (espera o healthcheck da API)
+        run: docker compose up --build -d --wait
       - name: Check-in, duplicado, CPF inexistente e fila
         run: |
           set -e
@@ -90,9 +87,18 @@ jobs:
           test "$(criar 00000000000)" = 404
           curl -s http://localhost:3000/checkins | tee fila.json
           grep -q '"senha":2' fila.json
-      - name: Front responde nas rotas do totem e da recepção
+          grep -q '"cpfMascarado":"\*\*\*.111.111-\*\*"' fila.json
+          if grep -q '11111111111' fila.json; then echo 'CPF completo na fila'; exit 1; fi
+      - name: Chamada da próxima senha e painel sem dados pessoais
         run: |
-          for rota in / /totem /recepcao; do
+          set -e
+          curl -sf -X POST http://localhost:3000/checkins/chamar-proximo | grep -q '"senha":1'
+          curl -s http://localhost:3000/chamadas | tee chamadas.json
+          grep -q '"senha":1' chamadas.json
+          if grep -qE 'nome|cpf' chamadas.json; then echo 'dado pessoal no painel'; exit 1; fi
+      - name: Front responde nas quatro telas
+        run: |
+          for rota in / /totem /recepcao /painel; do
             curl -sf "http://localhost:5173$rota" | grep -q '<div id="root">'
           done
       - name: Logs em caso de falha
