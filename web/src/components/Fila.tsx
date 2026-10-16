@@ -1,16 +1,7 @@
-import type { Checkin } from '../api';
-import { mascararCpf } from '../cpf';
-import { formatarSenha } from '../senha';
+import type { CheckinNaFila } from '../api';
+import { formatarHorario, formatarSenha } from '../formato';
 
-function horario(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Sao_Paulo',
-  });
-}
-
-function minutosDeEspera(iso: string, agora: Date): number {
+function minutosDesde(iso: string, agora: Date): number {
   return Math.max(0, Math.floor((agora.getTime() - new Date(iso).getTime()) / 60000));
 }
 
@@ -21,29 +12,36 @@ function textoEspera(minutos: number): string {
 }
 
 interface Props {
-  fila: Checkin[];
+  /** Todos os check-ins de hoje: aguardando e já chamados. */
+  checkins: CheckinNaFila[];
   agora: Date;
   carregando: boolean;
   erro: string | null;
 }
 
-export function Fila({ fila, agora, carregando, erro }: Props) {
-  const maiorEspera = fila.length > 0 ? minutosDeEspera(fila[0].chegada, agora) : 0;
+export function Fila({ checkins, agora, carregando, erro }: Props) {
+  const aguardando = checkins.filter((c) => c.status === 'aguardando');
+  const chamados = checkins
+    .filter((c) => c.chamadoEm !== null)
+    .sort((a, b) => b.chamadoEm!.localeCompare(a.chamadoEm!));
 
   return (
     <section aria-labelledby="titulo-fila" className="flex flex-col gap-8 p-6 md:p-10">
-      {/* KPI principal no canto superior esquerdo: quantos esperam e há quanto tempo. */}
-      <header className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-linha bg-linha">
-        <Indicador rotulo="Na fila hoje" valor={String(fila.length).padStart(2, '0')} />
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-linha bg-linha">
+        <Indicador rotulo="Aguardando" valor={String(aguardando.length).padStart(2, '0')} />
         <Indicador
           rotulo="Maior espera"
-          valor={fila.length > 0 ? textoEspera(maiorEspera) : '—'}
+          valor={
+            aguardando.length > 0
+              ? textoEspera(minutosDesde(aguardando[0].chegada, agora))
+              : '—'
+          }
         />
-      </header>
+      </div>
 
       <h2 id="titulo-fila" className="flex items-baseline justify-between text-2xl font-extrabold">
-        Fila do dia
-        <span className="tabular-nums text-sm font-normal uppercase tracking-wider text-cinza">
+        Aguardando
+        <span className="text-sm font-normal uppercase tracking-wider text-cinza">
           por ordem de senha
         </span>
       </h2>
@@ -55,20 +53,31 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
         </p>
       )}
 
-      {carregando && fila.length === 0 && <p className="text-cinza">Carregando fila…</p>}
+      {carregando && <p className="text-cinza">Carregando fila…</p>}
 
-      {!carregando && !erro && fila.length === 0 && (
+      {!carregando && !erro && aguardando.length === 0 && (
         <div className="flex flex-col gap-1 rounded-lg border border-dashed border-linha px-6 py-10 text-center">
-          <strong>Nenhum check-in até agora.</strong>
-          <span className="text-sm text-cinza">
-            Os pacientes aparecem aqui assim que fizerem o check-in no totem.
-          </span>
+          {checkins.length === 0 ? (
+            <>
+              <strong>Nenhum check-in até agora.</strong>
+              <span className="text-sm text-cinza">
+                Os pacientes aparecem aqui assim que fizerem o check-in no totem.
+              </span>
+            </>
+          ) : (
+            <>
+              <strong>Ninguém aguardando.</strong>
+              <span className="text-sm text-cinza">
+                Todos os pacientes de hoje já foram chamados.
+              </span>
+            </>
+          )}
         </div>
       )}
 
-      {fila.length > 0 && (
-        <ol className="flex flex-col">
-          {fila.map((checkin, indice) => {
+      {aguardando.length > 0 && (
+        <ol aria-label="Pacientes aguardando" className="flex flex-col">
+          {aguardando.map((checkin, indice) => {
             const proximo = indice === 0;
             return (
               <li
@@ -85,14 +94,14 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-lg font-semibold">{checkin.nome}</span>
                   <span className={`tabular-nums text-sm ${proximo ? 'text-white/80' : 'text-cinza'}`}>
-                    {mascararCpf(checkin.cpf)}
+                    {checkin.cpfMascarado}
                   </span>
                 </span>
                 <span className="flex flex-col items-end">
-                  <span className="tabular-nums text-lg">{horario(checkin.chegada)}</span>
+                  <span className="tabular-nums text-lg">{formatarHorario(checkin.chegada)}</span>
                   <span className={`text-sm ${proximo ? 'text-white/85' : 'text-cinza'}`}>
                     {proximo ? 'Próximo · ' : ''}
-                    {textoEspera(minutosDeEspera(checkin.chegada, agora))}
+                    {textoEspera(minutosDesde(checkin.chegada, agora))}
                   </span>
                 </span>
               </li>
@@ -100,14 +109,36 @@ export function Fila({ fila, agora, carregando, erro }: Props) {
           })}
         </ol>
       )}
+
+      {chamados.length > 0 && (
+        <section aria-labelledby="titulo-chamados" className="flex flex-col gap-3">
+          <h3 id="titulo-chamados" className="text-lg font-bold">
+            Chamados hoje
+          </h3>
+          <ol aria-label="Pacientes chamados" className="flex flex-col">
+            {chamados.map((checkin) => (
+              <li
+                key={checkin.id}
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-linha py-2 text-cinza"
+              >
+                <span className="tabular-nums font-semibold">{formatarSenha(checkin.senha)}</span>
+                <span className="truncate">{checkin.nome}</span>
+                <span className="tabular-nums text-sm">
+                  chamado às {formatarHorario(checkin.chamadoEm!)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
     </section>
   );
 }
 
 function Indicador({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
-    <div className="flex flex-col gap-1 bg-white px-5 py-4">
-      <span className="tabular-nums text-sm uppercase tracking-wider text-cinza">{rotulo}</span>
+    <div role="group" aria-label={rotulo} className="flex flex-col gap-1 bg-white px-5 py-4">
+      <span className="text-sm uppercase tracking-wider text-cinza">{rotulo}</span>
       <span className="tabular-nums text-4xl font-semibold">{valor}</span>
     </div>
   );

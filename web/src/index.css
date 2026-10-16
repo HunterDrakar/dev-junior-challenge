@@ -11,8 +11,12 @@
   --color-teal: #007889;
   --color-ciano: #00b2bb;
   --color-dourado: #bd8951;
+  /* Fundo dos botões: com texto petróleo, o dourado do site fica em 3,9:1;
+     este tom dá 5,1:1 (mínimo WCAG AA para texto normal: 4,5:1). */
+  --color-dourado-claro: #cfa06c;
   --color-cinza: #4a5560;
   --color-erro: #dc3545;
+  --color-erro-texto: #b02a37; /* texto de erro sobre fundo claro (6:1) */
 
   --animate-esvaziar: esvaziar 10s linear forwards;
   /* backwards: depois da animação o elemento fica sem transform; com both/forwards o

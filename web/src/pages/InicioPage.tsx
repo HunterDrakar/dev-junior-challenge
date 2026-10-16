@@ -9,18 +9,22 @@ const TELAS = [
   {
     href: '/recepcao',
     titulo: 'Recepção',
-    descricao: 'Tela interna: a equipe acompanha a fila do dia com nomes e tempo de espera.',
+    descricao: 'Tela interna: a equipe acompanha a fila com nomes e chama a próxima senha.',
+  },
+  {
+    href: '/painel',
+    titulo: 'Painel',
+    descricao: 'TV da sala de espera: mostra a senha chamada, sem nome de ninguém.',
   },
 ];
 
-/** Página inicial: aponta para as duas telas, que rodam em aparelhos diferentes. */
 export function InicioPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Cabecalho titulo="Check-in de pacientes" />
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-8 p-6 md:p-10">
-        <h1 className="text-3xl font-extrabold">Escolha a tela</h1>
-        <div className="grid gap-4 md:grid-cols-2">
+        <h2 className="text-3xl font-extrabold">Escolha a tela</h2>
+        <div className="grid gap-4 md:grid-cols-3">
           {TELAS.map((tela) => (
             <a
               key={tela.href}

@@ -1,16 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError, criarCheckin, listarFila } from './api';
-
-function respostaJson(status: number, corpo: unknown) {
-  return new Response(JSON.stringify(corpo), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
+import { ApiError, chamarProximo, criarCheckin, listarChamadas, listarFila } from './api';
+import { respostaJson } from './test/respostas';
 
 describe('cliente da API', () => {
   it('criarCheckin faz POST /checkins com o CPF e devolve o corpo', async () => {
-    const criado = { id: 1, cpf: '11111111111', nome: 'Ana', chegada: '', senha: 1, posicao: 1 };
+    const criado = { primeiroNome: 'Ana', senha: 1, posicao: 1 };
     const fetchMock = vi.fn().mockResolvedValue(respostaJson(201, criado));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -28,6 +22,19 @@ describe('cliente da API', () => {
 
     await expect(listarFila()).resolves.toEqual([]);
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/checkins', undefined);
+  });
+
+  it('chamarProximo faz POST /checkins/chamar-proximo e listarChamadas, GET /chamadas', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(respostaJson(200, [])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await chamarProximo();
+    await listarChamadas();
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+      ['http://localhost:3000/checkins/chamar-proximo', 'POST'],
+      ['http://localhost:3000/chamadas', undefined],
+    ]);
   });
 
   it('transforma erro da API em ApiError com status e mensagem', async () => {

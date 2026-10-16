@@ -1,15 +1,28 @@
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
-export interface Checkin {
-  id: number;
-  cpf: string;
-  nome: string;
-  chegada: string; // ISO 8601
-  senha: number; // senha do dia: 1, 2, 3...
+/** Resposta do check-in, mostrada no totem. */
+export interface ConfirmacaoCheckin {
+  primeiroNome: string;
+  senha: number;
+  posicao: number;
 }
 
-/** Resposta do POST /checkins: o check-in e a posição na fila de hoje. */
-export type CheckinCriado = Checkin & { posicao: number };
+/** Um paciente na fila da recepção. Datas em ISO 8601. */
+export interface CheckinNaFila {
+  id: number;
+  senha: number;
+  nome: string;
+  cpfMascarado: string;
+  chegada: string;
+  status: 'aguardando' | 'chamado';
+  chamadoEm: string | null;
+}
+
+/** O que o painel público recebe: só senha e horário. */
+export interface Chamada {
+  senha: number;
+  chamadoEm: string;
+}
 
 /** Erro da API com o status HTTP (0 = sem conexão). */
 export class ApiError extends Error {
@@ -21,7 +34,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(caminho: string, init?: RequestInit): Promise<T> {
+async function requisitar<T>(caminho: string, init?: RequestInit): Promise<T> {
   let resposta: Response;
   try {
     resposta = await fetch(`${API_URL}${caminho}`, init);
@@ -40,14 +53,22 @@ async function request<T>(caminho: string, init?: RequestInit): Promise<T> {
   return corpo as T;
 }
 
-export function criarCheckin(cpf: string): Promise<CheckinCriado> {
-  return request<CheckinCriado>('/checkins', {
+export function criarCheckin(cpf: string): Promise<ConfirmacaoCheckin> {
+  return requisitar('/checkins', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cpf }),
   });
 }
 
-export function listarFila(): Promise<Checkin[]> {
-  return request<Checkin[]>('/checkins');
+export function listarFila(): Promise<CheckinNaFila[]> {
+  return requisitar('/checkins');
+}
+
+export function chamarProximo(): Promise<CheckinNaFila> {
+  return requisitar('/checkins/chamar-proximo', { method: 'POST' });
+}
+
+export function listarChamadas(): Promise<Chamada[]> {
+  return requisitar('/chamadas');
 }

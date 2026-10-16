@@ -1,41 +1,72 @@
-import { useCallback, useEffect, useState } from 'react';
-import { listarFila, type Checkin } from '../api';
+import { useState } from 'react';
+import { ApiError, chamarProximo, listarFila } from '../api';
 import { Cabecalho } from '../components/Cabecalho';
 import { Fila } from '../components/Fila';
+import { formatarSenha } from '../formato';
+import { useConsultaPeriodica } from '../useConsultaPeriodica';
 
-// A recepção vê os check-ins feitos no totem sem recarregar a página.
-const ATUALIZAR_A_CADA_MS = 10_000;
+type Aviso = { tipo: 'ok' | 'erro'; texto: string };
 
-/** Tela da recepção (uso interno): a fila do dia com nomes. */
+/** Tela interna: a fila do dia com nomes e o botão de chamar. */
 export function RecepcaoPage() {
-  const [fila, setFila] = useState<Checkin[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-  const [agora, setAgora] = useState(() => new Date());
+  const fila = useConsultaPeriodica(listarFila, 10_000);
+  const [chamando, setChamando] = useState(false);
+  const [aviso, setAviso] = useState<Aviso | null>(null);
 
-  const carregarFila = useCallback(async () => {
+  const checkins = fila.dados ?? [];
+  const ninguemAguardando = !checkins.some((c) => c.status === 'aguardando');
+
+  async function chamar() {
+    setChamando(true);
     try {
-      setFila(await listarFila());
-      setErro(null);
+      const chamado = await chamarProximo();
+      setAviso({
+        tipo: 'ok',
+        texto: `Senha ${formatarSenha(chamado.senha)} chamada: ${chamado.nome}`,
+      });
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro inesperado.');
+      setAviso({
+        tipo: 'erro',
+        texto:
+          e instanceof ApiError && e.status === 404
+            ? 'Ninguém aguardando na fila.'
+            : 'Não foi possível chamar. Tente de novo.',
+      });
     } finally {
-      setCarregando(false);
-      setAgora(new Date());
+      // Atualiza a fila antes de liberar o botão, para ele não enxergar o
+      // paciente que acabou de ser chamado.
+      await fila.recarregar();
+      setChamando(false);
     }
-  }, []);
-
-  useEffect(() => {
-    void carregarFila();
-    const intervalo = setInterval(carregarFila, ATUALIZAR_A_CADA_MS);
-    return () => clearInterval(intervalo);
-  }, [carregarFila]);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
       <Cabecalho titulo="Recepção · Fila do dia" />
       <main className="mx-auto w-full max-w-4xl flex-1">
-        <Fila fila={fila} agora={agora} carregando={carregando} erro={erro} />
+        <div className="flex flex-col gap-3 px-6 pt-6 md:flex-row md:items-center md:justify-between md:px-10 md:pt-10">
+          <p aria-live="polite" className="min-h-6">
+            {aviso && (
+              <span className={aviso.tipo === 'ok' ? 'font-semibold' : 'font-semibold text-erro-texto'}>
+                {aviso.texto}
+              </span>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={chamar}
+            disabled={chamando || ninguemAguardando}
+            className="rounded-full bg-dourado-claro px-6 py-3 font-bold text-petroleo transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-linha disabled:text-cinza"
+          >
+            {chamando ? 'Chamando…' : 'Chamar próximo'}
+          </button>
+        </div>
+        <Fila
+          checkins={checkins}
+          agora={fila.atualizadoEm}
+          carregando={fila.carregando}
+          erro={fila.erro}
+        />
       </main>
     </div>
   );

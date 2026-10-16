@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatarCpf, mascararCpf, somenteDigitos } from './cpf';
+import { formatarCpf, somenteDigitos } from './cpf';
 
 describe('somenteDigitos', () => {
   it('tira pontuação e letras', () => {
@@ -28,11 +28,5 @@ describe('formatarCpf', () => {
   it('aceita texto já formatado ou colado com sujeira', () => {
     expect(formatarCpf('123.456.789-01')).toBe('123.456.789-01');
     expect(formatarCpf(' 123 456 789 01 ')).toBe('123.456.789-01');
-  });
-});
-
-describe('mascararCpf', () => {
-  it('esconde os 3 primeiros e os 2 últimos dígitos', () => {
-    expect(mascararCpf('12345678901')).toBe('***.456.789-**');
   });
 });
