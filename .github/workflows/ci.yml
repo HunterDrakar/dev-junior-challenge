@@ -101,6 +101,23 @@ jobs:
           for rota in / /totem /recepcao /painel; do
             curl -sf "http://localhost:5173$rota" | grep -q '<div id="root">'
           done
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: e2e de navegador (Playwright) — totem, recepção e painel
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - name: Guarda o trace do Playwright em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-trace
+          path: web/test-results/
       - name: Logs em caso de falha
         if: failure()
         run: docker compose logs
