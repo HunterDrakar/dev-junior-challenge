@@ -7,12 +7,9 @@ import {
 import { CheckinRepository } from '../checkin/repositories/checkin.repository';
 
 /**
- * GET /health — a API está no ar e consegue falar com o banco?
- * Usado pelo healthcheck do Docker e por monitoramento.
- *
+ * A API está no ar e fala com o banco? Usado pelo healthcheck do Docker.
  * O cadastro externo fica de fora de propósito: se ele cair, a API continua
- * saudável (e responde 503 só no check-in). Se entrasse aqui, o Docker poderia
- * reiniciar uma API que não tem problema nenhum.
+ * saudável (responde 503 só no check-in) e o Docker não a reinicia à toa.
  */
 @Controller('health')
 export class HealthController {

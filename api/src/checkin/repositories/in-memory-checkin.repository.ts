@@ -9,29 +9,44 @@ export class InMemoryCheckinRepository extends CheckinRepository {
   private proximoId = 1;
 
   salvar(novo: NovoCheckin): Promise<Checkin> {
-    const dia = diaLocal(novo.chegada);
-    const duplicado = this.checkins.some(
-      (c) => c.cpf === novo.cpf && diaLocal(c.chegada) === dia,
-    );
-    if (duplicado) {
+    const doDia = this.doDia(diaLocal(novo.chegada));
+    if (doDia.some((c) => c.cpf === novo.cpf)) {
       return Promise.reject(new CheckinDuplicadoError());
     }
 
-    const senha =
-      this.checkins.filter((c) => diaLocal(c.chegada) === dia).length + 1;
-    const checkin = { id: this.proximoId++, ...novo, senha };
+    const checkin: Checkin = {
+      id: this.proximoId++,
+      ...novo,
+      senha: doDia.length + 1,
+      status: 'aguardando',
+      chamadoEm: null,
+    };
     this.checkins.push(checkin);
-    return Promise.resolve(checkin);
+    return Promise.resolve({ ...checkin });
   }
 
   verificarConexao(): Promise<void> {
-    return Promise.resolve(); // memória está sempre disponível
+    return Promise.resolve();
   }
 
   listarDoDia(dia: string): Promise<Checkin[]> {
-    const doDia = this.checkins
+    // Cópias: quem recebe a lista não vê (nem altera) o que muda depois aqui.
+    return Promise.resolve(this.doDia(dia).map((c) => ({ ...c })));
+  }
+
+  chamarProximo(dia: string, chamadoEm: Date): Promise<Checkin | null> {
+    const proximo = this.doDia(dia).find((c) => c.status === 'aguardando');
+    if (!proximo) {
+      return Promise.resolve(null);
+    }
+    proximo.status = 'chamado';
+    proximo.chamadoEm = chamadoEm;
+    return Promise.resolve({ ...proximo });
+  }
+
+  private doDia(dia: string): Checkin[] {
+    return this.checkins
       .filter((c) => diaLocal(c.chegada) === dia)
       .sort((a, b) => a.senha - b.senha);
-    return Promise.resolve(doDia);
   }
 }

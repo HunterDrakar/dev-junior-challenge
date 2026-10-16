@@ -1,33 +1,33 @@
 import { Checkin, NovoCheckin } from '../checkin.entity';
 
-/** O paciente já tem check-in no mesmo dia. */
 export class CheckinDuplicadoError extends Error {
   constructor() {
     super('Check-in duplicado no mesmo dia');
   }
 }
 
-/**
- * Contrato de persistência da fila. O service depende só desta classe,
- * então dá para trocar memória por banco sem mexer na regra de negócio.
- */
+/** O service depende só deste contrato; a fila fica no Postgres ou em memória. */
 export abstract class CheckinRepository {
-  /** Onde a fila fica guardada, para o /health dizer. */
   abstract readonly armazenamento: 'postgres' | 'memoria';
 
-  /** Lança um erro se o armazenamento não estiver respondendo. */
+  /** Lança um erro se o armazenamento não responder (usado pelo /health). */
   abstract verificarConexao(): Promise<void>;
 
   /**
-   * Grava o check-in com a próxima senha do dia.
-   * Lança CheckinDuplicadoError se o CPF já fez check-in no dia da chegada.
+   * Grava com a próxima senha do dia.
+   * Lança CheckinDuplicadoError se o CPF já fez check-in no dia.
    */
   abstract salvar(checkin: NovoCheckin): Promise<Checkin>;
 
   /**
-   * Check-ins de um dia (YYYY-MM-DD, horário de Brasília), na ordem das senhas.
-   * A senha é a ordem em que o check-in foi gravado; o horário de chegada é marcado
-   * um instante antes e, com requisições simultâneas, pode ficar fora de ordem.
+   * Check-ins do dia (YYYY-MM-DD, horário de Brasília) na ordem das senhas.
+   * Não por `chegada`: com requisições simultâneas ela pode sair fora de ordem.
    */
   abstract listarDoDia(dia: string): Promise<Checkin[]>;
+
+  /**
+   * Marca como chamado quem tem a menor senha aguardando; null se ninguém
+   * aguarda. Duas chamadas ao mesmo tempo nunca pegam o mesmo paciente.
+   */
+  abstract chamarProximo(dia: string, chamadoEm: Date): Promise<Checkin | null>;
 }

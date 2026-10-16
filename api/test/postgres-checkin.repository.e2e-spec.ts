@@ -37,7 +37,7 @@ descrever('PostgresCheckinRepository (banco real)', () => {
     admin = new Pool({ connectionString: url });
     await admin.query('DROP TABLE IF EXISTS checkins, senhas_do_dia');
     repositorio = new PostgresCheckinRepository(url);
-    await repositorio.onModuleInit(); // cria as tabelas
+    await repositorio.onModuleInit();
   });
 
   beforeEach(async () => {
@@ -71,21 +71,7 @@ descrever('PostgresCheckinRepository (banco real)', () => {
     await expect(repositorio.verificarConexao()).resolves.toBeUndefined();
   });
 
-  it('banco antigo, sem o contador: continua a contagem do dia', async () => {
-    // Simula um banco criado antes do contador: check-ins com senhas 1 e 2.
-    await admin.query('DROP TABLE senhas_do_dia');
-    await admin.query(
-      `INSERT INTO checkins (cpf, nome, chegada, dia, senha) VALUES
-         ('11111111111', 'Ana', now(), '2026-10-14', 1),
-         ('22222222222', 'Bruno', now(), '2026-10-14', 2)`,
-    );
-
-    await repositorio.onModuleInit(); // recria o contador a partir do que existe
-
-    expect((await repositorio.salvar(novo('33333333333'))).senha).toBe(3);
-  });
-
-  it('grava e devolve o check-in com a senha 1', async () => {
+  it('grava e devolve o check-in com a senha 1, aguardando', async () => {
     const checkin = await repositorio.salvar(novo('11111111111'));
 
     expect(checkin).toEqual({
@@ -94,7 +80,68 @@ descrever('PostgresCheckinRepository (banco real)', () => {
       nome: 'Paciente 11111111111',
       chegada: HOJE,
       senha: 1,
+      status: 'aguardando',
+      chamadoEm: null,
     });
+  });
+
+  it('chamarProximo chama a menor senha do dia e grava o horário', async () => {
+    await repositorio.salvar(novo('11111111111'));
+    await repositorio.salvar(novo('22222222222'));
+    const horario = new Date('2026-10-14T12:30:00Z');
+
+    const chamado = await repositorio.chamarProximo('2026-10-14', horario);
+
+    expect(chamado).toMatchObject({
+      senha: 1,
+      status: 'chamado',
+      chamadoEm: horario,
+    });
+    expect(await repositorio.chamarProximo('2026-10-15', horario)).toBeNull();
+  });
+
+  it('com a senha 1 travada por outra chamada em andamento, pega a 2 sem esperar', async () => {
+    await repositorio.salvar(novo('11111111111'));
+    await repositorio.salvar(novo('22222222222'));
+
+    // Outra recepcionista está no meio de uma chamada: a senha 1 está travada.
+    const outraRecepcionista = await admin.connect();
+    await outraRecepcionista.query('BEGIN');
+    await outraRecepcionista.query(
+      'SELECT id FROM checkins WHERE senha = 1 FOR UPDATE',
+    );
+    // Se a nossa chamada esperasse pela trava, ela só seria liberada em 3 s.
+    const liberar = setTimeout(
+      () => void outraRecepcionista.query('ROLLBACK'),
+      3000,
+    );
+
+    const inicio = Date.now();
+    const chamado = await repositorio.chamarProximo('2026-10-14', HOJE);
+    const demorou = Date.now() - inicio;
+
+    clearTimeout(liberar);
+    await outraRecepcionista.query('ROLLBACK');
+    outraRecepcionista.release();
+    expect(chamado?.senha).toBe(2);
+    expect(demorou).toBeLessThan(2000);
+  });
+
+  it('10 chamadas ao mesmo tempo com 6 aguardando: 6 pacientes diferentes e 4 vazias', async () => {
+    for (const cpf of cpfs(6)) {
+      await repositorio.salvar(novo(cpf));
+    }
+
+    const resultados = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        repositorio.chamarProximo('2026-10-14', HOJE),
+      ),
+    );
+
+    const chamados = resultados.filter((c) => c !== null);
+    const senhas = chamados.map((c) => c.senha).sort((a, b) => a - b);
+    expect(senhas).toEqual([1, 2, 3, 4, 5, 6]); // ninguém chamado duas vezes
+    expect(resultados.filter((c) => c === null)).toHaveLength(4);
   });
 
   it('recusa o mesmo CPF duas vezes no mesmo dia', async () => {

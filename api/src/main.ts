@@ -4,8 +4,7 @@ import { AppModule } from './app.module';
 import { configurarApp } from './app.setup';
 
 async function bootstrap() {
-  // Lê o api/.env, se existir (recurso nativo do Node, sem dotenv).
-  // Variáveis já definidas no ambiente (ex.: Docker) têm prioridade.
+  // Variáveis já definidas no ambiente (ex.: Docker) têm prioridade sobre o .env.
   if (existsSync('.env')) {
     process.loadEnvFile('.env');
   }

@@ -24,14 +24,12 @@ const PACIENTES: Record<string, Paciente> = {
   },
 };
 
-// Formato do JSON que a API devolve.
-interface CheckinJson {
-  id: number;
-  cpf: string;
-  nome: string;
-  chegada: string;
+interface CheckinNaFilaJson {
   senha: number;
-  posicao?: number;
+  nome: string;
+  cpfMascarado: string;
+  status: 'aguardando' | 'chamado';
+  chamadoEm: string | null;
 }
 interface ErroJson {
   message: string | string[];
@@ -68,30 +66,26 @@ describe('Check-ins (e2e)', () => {
     await app.close();
   });
 
-  const criar = (corpo: object) =>
-    request(app.getHttpServer()).post('/checkins').send(corpo);
+  const criar = (entrada: object) =>
+    request(app.getHttpServer()).post('/checkins').send(entrada);
+  const chamar = () =>
+    request(app.getHttpServer()).post('/checkins/chamar-proximo');
+  const listar = () => request(app.getHttpServer()).get('/checkins');
 
   describe('POST /checkins', () => {
-    it('201: registra e devolve nome, senha e posição', async () => {
+    it('201: devolve só o primeiro nome, a senha e a posição', async () => {
       const resposta = await criar({ cpf: '11111111111' }).expect(201);
 
       expect(resposta.body).toEqual({
-        id: 1,
-        cpf: '11111111111',
-        nome: 'Ana Souza',
-        chegada: expect.any(String) as string,
+        primeiroNome: 'Ana',
         senha: 1,
         posicao: 1,
       });
-      expect(
-        new Date(corpo<CheckinJson>(resposta).chegada).toString(),
-      ).not.toBe('Invalid Date');
     });
 
-    it('201: aceita o CPF com pontuação e guarda só os dígitos', async () => {
-      const resposta = await criar({ cpf: '111.111.111-11' }).expect(201);
+    it('201: aceita o CPF com pontuação e consulta só os dígitos', async () => {
+      await criar({ cpf: '111.111.111-11' }).expect(201);
 
-      expect(corpo<CheckinJson>(resposta).cpf).toBe('11111111111');
       expect(cadastro.buscarPorCpf).toHaveBeenCalledWith('11111111111');
     });
 
@@ -103,7 +97,21 @@ describe('Check-ins (e2e)', () => {
         { cpf: 'abc.def.ghi-jk' },
         'O CPF deve ter 11 dígitos.',
       ],
-      ['CPF como número', { cpf: 11111111111 }, 'Informe o CPF.'],
+      [
+        'letras no meio dos dígitos',
+        { cpf: '1a1b1c1d1e1f1g1h1i1j1k' },
+        'O CPF deve ter 11 dígitos.',
+      ],
+      [
+        'texto em volta do CPF',
+        { cpf: 'CPF 111.111.111-11' },
+        'O CPF deve ter 11 dígitos.',
+      ],
+      [
+        'CPF como número',
+        { cpf: 11111111111 },
+        'O CPF deve ser enviado como texto.',
+      ],
     ])('400: %s', async (_caso, entrada, mensagem) => {
       const resposta = await criar(entrada).expect(400);
 
@@ -139,24 +147,72 @@ describe('Check-ins (e2e)', () => {
   });
 
   describe('GET /checkins', () => {
-    it('devolve lista vazia quando ninguém fez check-in', async () => {
-      await request(app.getHttpServer()).get('/checkins').expect(200, []);
+    it('lista vazia quando ninguém fez check-in', async () => {
+      await listar().expect(200, []);
     });
 
-    it('devolve a fila na ordem das senhas', async () => {
+    it('fila na ordem das senhas, com o CPF mascarado', async () => {
       await criar({ cpf: '22222222222' }).expect(201);
       await criar({ cpf: '11111111111' }).expect(201);
 
-      const resposta = await request(app.getHttpServer())
-        .get('/checkins')
-        .expect(200);
+      const resposta = await listar().expect(200);
 
       expect(
-        corpo<CheckinJson[]>(resposta).map((c) => [c.senha, c.nome]),
+        corpo<CheckinNaFilaJson[]>(resposta).map((c) => [
+          c.senha,
+          c.nome,
+          c.cpfMascarado,
+        ]),
       ).toEqual([
-        [1, 'Bruno Carvalho'],
-        [2, 'Ana Souza'],
+        [1, 'Bruno Carvalho', '***.222.222-**'],
+        [2, 'Ana Souza', '***.111.111-**'],
       ]);
+      expect(JSON.stringify(resposta.body)).not.toMatch(
+        /11111111111|22222222222/,
+      );
+    });
+  });
+
+  describe('POST /checkins/chamar-proximo', () => {
+    it('200: chama a menor senha que aguarda', async () => {
+      await criar({ cpf: '11111111111' }).expect(201);
+      await criar({ cpf: '22222222222' }).expect(201);
+
+      const resposta = await chamar().expect(200);
+
+      expect(resposta.body).toMatchObject({
+        senha: 1,
+        nome: 'Ana Souza',
+        cpfMascarado: '***.111.111-**',
+        status: 'chamado',
+      });
+      expect(corpo<CheckinNaFilaJson>(resposta).chamadoEm).toEqual(
+        expect.any(String),
+      );
+    });
+
+    it('404: ninguém aguardando', async () => {
+      const resposta = await chamar().expect(404);
+
+      expect(corpo<ErroJson>(resposta).message).toBe(
+        'Ninguém aguardando na fila.',
+      );
+    });
+  });
+
+  describe('GET /chamadas', () => {
+    it('só senha e horário, sem nome nem CPF', async () => {
+      await criar({ cpf: '11111111111' }).expect(201);
+      await chamar().expect(200);
+
+      const resposta = await request(app.getHttpServer())
+        .get('/chamadas')
+        .expect(200);
+
+      const chamadas = corpo<object[]>(resposta);
+      expect(chamadas).toHaveLength(1);
+      expect(Object.keys(chamadas[0]).sort()).toEqual(['chamadoEm', 'senha']);
+      expect(JSON.stringify(resposta.body)).not.toMatch(/Ana|11111111111/);
     });
   });
 
@@ -164,18 +220,14 @@ describe('Check-ins (e2e)', () => {
     it.each(['http://localhost:5173', 'http://127.0.0.1:5173'])(
       'libera o front local (%s)',
       async (origem) => {
-        const resposta = await request(app.getHttpServer())
-          .get('/checkins')
-          .set('Origin', origem)
-          .expect(200);
+        const resposta = await listar().set('Origin', origem).expect(200);
 
         expect(resposta.headers['access-control-allow-origin']).toBe(origem);
       },
     );
 
     it('não libera outros sites', async () => {
-      const resposta = await request(app.getHttpServer())
-        .get('/checkins')
+      const resposta = await listar()
         .set('Origin', 'https://site-qualquer.example')
         .expect(200);
 

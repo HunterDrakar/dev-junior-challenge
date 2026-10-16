@@ -1,5 +1,6 @@
 import { Logger, Module } from '@nestjs/common';
 import { CadastroModule } from '../cadastro/cadastro.module';
+import { ChamadasController } from './chamadas.controller';
 import { CheckinController } from './checkin.controller';
 import { CheckinService } from './checkin.service';
 import { CheckinRepository } from './repositories/checkin.repository';
@@ -21,7 +22,7 @@ function criarRepositorio(): CheckinRepository {
 
 @Module({
   imports: [CadastroModule],
-  controllers: [CheckinController],
+  controllers: [CheckinController, ChamadasController],
   providers: [
     CheckinService,
     { provide: CheckinRepository, useFactory: criarRepositorio },

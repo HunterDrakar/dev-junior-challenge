@@ -1,21 +1,34 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { Checkin, CheckinCriado } from './checkin.entity';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  CheckinNaFila,
+  ConfirmacaoCheckin,
+  paraRecepcao,
+  paraTotem,
+} from './checkin.respostas';
 import { CheckinService } from './checkin.service';
-import { CreateCheckinDto } from './dto/create-checkin.dto';
+import { CriarCheckinDto } from './dto/criar-checkin.dto';
 
 @Controller('checkins')
 export class CheckinController {
   constructor(private readonly checkinService: CheckinService) {}
 
-  /** POST /checkins — registra o paciente na fila e devolve a posição dele. */
   @Post()
-  criar(@Body() dto: CreateCheckinDto): Promise<CheckinCriado> {
-    return this.checkinService.criar(dto.cpf);
+  async criar(@Body() dto: CriarCheckinDto): Promise<ConfirmacaoCheckin> {
+    const cpf = dto.cpf.replace(/\D/g, '');
+    const { checkin, posicao } = await this.checkinService.criar(cpf);
+    return paraTotem(checkin, posicao);
   }
 
-  /** GET /checkins — fila de hoje, por ordem de chegada. */
   @Get()
-  listar(): Promise<Checkin[]> {
-    return this.checkinService.listarFilaDeHoje();
+  async listar(): Promise<CheckinNaFila[]> {
+    const fila = await this.checkinService.listarFilaDeHoje();
+    return fila.map(paraRecepcao);
+  }
+
+  // 404 quando ninguém aguarda: não há paciente a chamar.
+  @Post('chamar-proximo')
+  @HttpCode(200)
+  async chamarProximo(): Promise<CheckinNaFila> {
+    return paraRecepcao(await this.checkinService.chamarProximo());
   }
 }

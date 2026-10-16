@@ -31,6 +31,7 @@ const HOJE_9H = new Date('2026-10-14T12:00:00Z');
 
 describe('CheckinService', () => {
   let cadastro: { buscarPorCpf: jest.Mock };
+  let repositorio: InMemoryCheckinRepository;
   let service: CheckinService;
 
   beforeEach(() => {
@@ -44,9 +45,10 @@ describe('CheckinService', () => {
         Promise.resolve(PACIENTES[cpf] ?? null),
       ),
     };
+    repositorio = new InMemoryCheckinRepository();
     service = new CheckinService(
       cadastro as unknown as CadastroService,
-      new InMemoryCheckinRepository(),
+      repositorio,
     );
   });
 
@@ -55,8 +57,8 @@ describe('CheckinService', () => {
   });
 
   describe('criar', () => {
-    it('registra o check-in com o nome do cadastro, a senha e a posição', async () => {
-      const checkin = await service.criar('11111111111');
+    it('registra com o nome do cadastro, a senha e a posição', async () => {
+      const { checkin, posicao } = await service.criar('11111111111');
 
       expect(cadastro.buscarPorCpf).toHaveBeenCalledWith('11111111111');
       expect(checkin).toEqual({
@@ -65,8 +67,10 @@ describe('CheckinService', () => {
         nome: 'Ana Souza',
         chegada: HOJE_9H,
         senha: 1,
-        posicao: 1,
+        status: 'aguardando',
+        chamadoEm: null,
       });
+      expect(posicao).toBe(1);
     });
 
     it('dá senhas e posições em sequência', async () => {
@@ -74,18 +78,42 @@ describe('CheckinService', () => {
       const segundo = await service.criar('22222222222');
       const terceiro = await service.criar('33333333333');
 
-      expect(segundo).toMatchObject({ senha: 2, posicao: 2 });
-      expect(terceiro).toMatchObject({ senha: 3, posicao: 3 });
+      expect([segundo.checkin.senha, segundo.posicao]).toEqual([2, 2]);
+      expect([terceiro.checkin.senha, terceiro.posicao]).toEqual([3, 3]);
     });
 
-    it('responde 404 e não grava nada quando o CPF não existe no cadastro', async () => {
+    it('a posição conta só quem ainda aguarda', async () => {
+      await service.criar('11111111111');
+      await service.criar('22222222222');
+      await service.chamarProximo();
+
+      const carla = await service.criar('33333333333');
+
+      expect([carla.checkin.senha, carla.posicao]).toEqual([3, 2]);
+    });
+
+    it('a posição nunca é 0, mesmo se a recepção chamar o paciente antes de ela ser calculada', async () => {
+      const listar = repositorio.listarDoDia.bind(repositorio);
+      jest
+        .spyOn(repositorio, 'listarDoDia')
+        .mockImplementationOnce(async (dia) => {
+          await repositorio.chamarProximo(dia, new Date());
+          return listar(dia);
+        });
+
+      const { posicao } = await service.criar('11111111111');
+
+      expect(posicao).toBe(1);
+    });
+
+    it('404 e nada gravado quando o CPF não existe no cadastro', async () => {
       await expect(service.criar('99999999999')).rejects.toBeInstanceOf(
         NotFoundException,
       );
       expect(await service.listarFilaDeHoje()).toEqual([]);
     });
 
-    it('responde 409 quando o paciente já fez check-in hoje', async () => {
+    it('409 quando o paciente já fez check-in hoje', async () => {
       await service.criar('11111111111');
 
       await expect(service.criar('11111111111')).rejects.toBeInstanceOf(
@@ -105,14 +133,14 @@ describe('CheckinService', () => {
       expect(await service.listarFilaDeHoje()).toEqual([]);
     });
 
-    it('deixa o mesmo paciente voltar no dia seguinte, e a senha recomeça', async () => {
+    it('o mesmo paciente pode voltar no dia seguinte, e a senha recomeça', async () => {
       await service.criar('11111111111');
       await service.criar('22222222222');
 
       jest.setSystemTime(new Date('2026-10-15T12:00:00Z'));
       const amanha = await service.criar('22222222222');
 
-      expect(amanha).toMatchObject({ senha: 1, posicao: 1 });
+      expect([amanha.checkin.senha, amanha.posicao]).toEqual([1, 1]);
     });
   });
 
@@ -140,8 +168,86 @@ describe('CheckinService', () => {
       ]);
     });
 
-    it('devolve lista vazia quando ninguém fez check-in', async () => {
+    it('lista vazia quando ninguém fez check-in', async () => {
       expect(await service.listarFilaDeHoje()).toEqual([]);
+    });
+  });
+
+  describe('chamarProximo', () => {
+    it('chama a menor senha que aguarda e marca o horário', async () => {
+      await service.criar('11111111111');
+      await service.criar('22222222222');
+
+      jest.setSystemTime(new Date('2026-10-14T12:20:00Z'));
+      const chamado = await service.chamarProximo();
+
+      expect(chamado).toMatchObject({
+        senha: 1,
+        nome: 'Ana Souza',
+        status: 'chamado',
+        chamadoEm: new Date('2026-10-14T12:20:00Z'),
+      });
+    });
+
+    it('chama em sequência, sem repetir', async () => {
+      await service.criar('11111111111');
+      await service.criar('22222222222');
+
+      const primeiro = await service.chamarProximo();
+      const segundo = await service.chamarProximo();
+
+      expect([primeiro.senha, segundo.senha]).toEqual([1, 2]);
+    });
+
+    it('404 quando ninguém aguarda', async () => {
+      await service.criar('11111111111');
+      await service.chamarProximo();
+
+      await expect(service.chamarProximo()).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('não chama quem fez check-in ontem', async () => {
+      jest.setSystemTime(new Date('2026-10-14T02:30:00Z')); // 23h30 de ontem
+      await service.criar('11111111111');
+      jest.setSystemTime(HOJE_9H);
+
+      await expect(service.chamarProximo()).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('listarChamadasDeHoje', () => {
+    it('só senha e horário, da chamada mais recente para a mais antiga', async () => {
+      await service.criar('11111111111');
+      await service.criar('22222222222');
+      await service.criar('33333333333');
+      jest.setSystemTime(new Date('2026-10-14T12:10:00Z'));
+      await service.chamarProximo();
+      jest.setSystemTime(new Date('2026-10-14T12:15:00Z'));
+      await service.chamarProximo();
+
+      expect(await service.listarChamadasDeHoje()).toEqual([
+        { senha: 2, chamadoEm: new Date('2026-10-14T12:15:00Z') },
+        { senha: 1, chamadoEm: new Date('2026-10-14T12:10:00Z') },
+      ]);
+    });
+
+    it('mostra no máximo as 5 últimas', async () => {
+      cadastro.buscarPorCpf.mockImplementation((cpf: string) =>
+        Promise.resolve({ cpf, nome: 'Paciente', dataNascimento: '' }),
+      );
+      for (let i = 1; i <= 6; i++) {
+        jest.setSystemTime(HOJE_9H.getTime() + i * 60_000);
+        await service.criar(String(i).padStart(11, '0'));
+        await service.chamarProximo();
+      }
+
+      const chamadas = await service.listarChamadasDeHoje();
+
+      expect(chamadas.map((c) => c.senha)).toEqual([6, 5, 4, 3, 2]);
     });
   });
 });

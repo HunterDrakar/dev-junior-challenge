@@ -4,12 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CadastroService } from '../cadastro/cadastro.service';
-import { Checkin, CheckinCriado } from './checkin.entity';
+import { Checkin } from './checkin.entity';
+import { Chamada } from './checkin.respostas';
 import { diaLocal } from './dia';
 import {
   CheckinDuplicadoError,
   CheckinRepository,
 } from './repositories/checkin.repository';
+
+const CHAMADAS_NO_PAINEL = 5;
 
 @Injectable()
 export class CheckinService {
@@ -18,7 +21,7 @@ export class CheckinService {
     private readonly repositorio: CheckinRepository,
   ) {}
 
-  async criar(cpf: string): Promise<CheckinCriado> {
+  async criar(cpf: string): Promise<{ checkin: Checkin; posicao: number }> {
     const paciente = await this.cadastro.buscarPorCpf(cpf);
     if (!paciente) {
       throw new NotFoundException(
@@ -40,14 +43,39 @@ export class CheckinService {
       throw erro;
     }
 
-    // A posição vai na resposta para o totem não precisar baixar a fila inteira
-    // (com nomes de outros pacientes) só para mostrar "você é o 3º".
+    // A posição vai na resposta para o totem não precisar baixar a fila (com
+    // nomes de outros pacientes). Conta quem aguarda com senha menor: assim ela
+    // não vira 0 se a recepção chamar este paciente antes desta consulta.
     const fila = await this.repositorio.listarDoDia(diaLocal(checkin.chegada));
-    const posicao = fila.findIndex((c) => c.id === checkin.id) + 1;
-    return { ...checkin, posicao };
+    const naFrente = fila.filter(
+      (c) => c.status === 'aguardando' && c.senha < checkin.senha,
+    ).length;
+    return { checkin, posicao: naFrente + 1 };
   }
 
   listarFilaDeHoje(): Promise<Checkin[]> {
     return this.repositorio.listarDoDia(diaLocal(new Date()));
+  }
+
+  async chamarProximo(): Promise<Checkin> {
+    const agora = new Date();
+    const chamado = await this.repositorio.chamarProximo(
+      diaLocal(agora),
+      agora,
+    );
+    if (!chamado) {
+      throw new NotFoundException('Ninguém aguardando na fila.');
+    }
+    return chamado;
+  }
+
+  /** Da chamada mais recente para a mais antiga. */
+  async listarChamadasDeHoje(): Promise<Chamada[]> {
+    const fila = await this.listarFilaDeHoje();
+    return fila
+      .filter((c): c is Checkin & { chamadoEm: Date } => c.chamadoEm !== null)
+      .map(({ senha, chamadoEm }) => ({ senha, chamadoEm }))
+      .sort((a, b) => b.chamadoEm.getTime() - a.chamadoEm.getTime())
+      .slice(0, CHAMADAS_NO_PAINEL);
   }
 }
