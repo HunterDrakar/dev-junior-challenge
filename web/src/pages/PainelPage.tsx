@@ -44,7 +44,7 @@ export function PainelPage() {
             Últimas chamadas
           </h2>
           {anteriores.length === 0 ? (
-            <p className="text-white/70">—</p>
+            <p className="text-white/70">Nenhuma ainda</p>
           ) : (
             <ol className="flex flex-col">
               {anteriores.map((chamada) => (

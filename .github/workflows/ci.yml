@@ -106,7 +106,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: e2e de navegador (Playwright) — totem, recepção e painel
+      - name: e2e de navegador (Playwright): totem, recepção e painel
         working-directory: web
         run: |
           npm ci

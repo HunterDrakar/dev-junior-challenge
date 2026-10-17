@@ -82,7 +82,7 @@ describe('Fila', () => {
     renderizar({ checkins: [CARLA_CHAMADA] });
 
     expect(screen.getByText('Ninguém aguardando.')).toBeInTheDocument();
-    expect(indicador('Maior espera')).toHaveTextContent('—');
+    expect(indicador('Maior espera')).toHaveTextContent('nenhuma');
   });
 
   it('estado vazio com orientação', () => {

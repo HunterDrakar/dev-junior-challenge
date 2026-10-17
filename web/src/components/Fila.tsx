@@ -34,7 +34,7 @@ export function Fila({ checkins, agora, carregando, erro }: Props) {
           valor={
             aguardando.length > 0
               ? textoEspera(minutosDesde(aguardando[0].chegada, agora))
-              : '—'
+              : 'nenhuma'
           }
         />
       </div>
