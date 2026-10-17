@@ -32,8 +32,9 @@ Pré-requisito: Docker com Compose. As portas `5173`, `3000` e `4000` precisam e
 docker compose up --build
 ```
 
-Abra **http://localhost:5173** e escolha a tela: **/totem** (check-in) ou **/recepcao** (fila).
-Para ver os dois lados ao mesmo tempo, abra cada um em uma aba. A fila fica salva no PostgreSQL.
+Abra **http://localhost:5173** e escolha a tela: **/totem** (check-in), **/recepcao** (fila e
+chamada) ou **/painel** (TV da sala de espera). Para ver tudo ao mesmo tempo, abra cada uma em
+uma aba. A fila fica salva no PostgreSQL.
 
 ### Opção 2: sem Docker (Node.js 22, ou 20.12 ou superior)
 
@@ -54,7 +55,7 @@ cd api && npm install && npm run start:dev
 cd web && npm install && npm run dev
 ```
 
-Abra **http://localhost:5173** e escolha **/totem** ou **/recepcao**.
+Abra **http://localhost:5173** e escolha **/totem**, **/recepcao** ou **/painel**.
 
 Não é preciso configurar nada: os valores padrão já apontam para `localhost`. Para mudar
 algum, copie `api/.env.example` para `api/.env` (ou `web/.env.example` para `web/.env`) e
@@ -65,6 +66,7 @@ edite:
 | `CADASTRO_URL` | api  | `http://localhost:4000` | URL do serviço de cadastro                      |
 | `DATABASE_URL` | api  | _(vazia)_               | Se definida, usa o PostgreSQL; senão, memória   |
 | `PORT`         | api  | `3000`                  | Porta da API                                    |
+| `CORS_ORIGIN`  | api  | `http://localhost:5173` e `http://127.0.0.1:5173` | Sites que podem chamar a API pelo navegador |
 | `VITE_API_URL` | web  | `http://localhost:3000` | URL da API chamada pelo navegador               |
 
 Se você já tem um PostgreSQL rodando na máquina, dá para usá-lo nesta opção: crie um banco
@@ -132,22 +134,28 @@ Organização da API:
 
 ```
 api/src/
-├── cadastro/              cliente HTTP do mock-service (CadastroService)
+├── cadastro/                    cliente HTTP do mock-service (CadastroService)
+├── health/                      GET /health
 └── checkin/
-    ├── checkin.controller.ts   rotas
-    ├── checkin.service.ts      regra de negócio
-    ├── dto/                    validação do CPF
-    └── repositories/           CheckinRepository + versões em memória e PostgreSQL
+    ├── checkin.controller.ts    rotas de check-in e chamada
+    ├── chamadas.controller.ts   rota pública do painel
+    ├── checkin.service.ts       regra de negócio
+    ├── checkin.respostas.ts     o que cada tela recebe (totem, recepção, painel)
+    ├── dto/                     validação do CPF
+    └── repositories/            CheckinRepository + versões em memória e PostgreSQL
 ```
 
-**Front-end (React)**: duas telas, pensadas para aparelhos diferentes.
+**Front-end (React)**: três telas, pensadas para aparelhos diferentes.
 
 - **Totem (`/totem`):** campo único de CPF com máscara e teclado numérico no celular; o botão mostra
   quantos dígitos faltam; cada erro diz o que fazer ("confira os números ou procure a
   recepção"); no sucesso mostra a senha e quantas pessoas estão na frente e volta sozinho para o
   próximo paciente. Se alguém digita o CPF e vai embora, ele some da tela em 30 segundos.
-- **Recepção (`/recepcao`):** total na fila e maior espera no topo, próximo paciente em destaque, horário
-  de chegada e tempo de espera de cada um. Atualiza sozinha a cada 10 segundos.
+- **Recepção (`/recepcao`):** quantos aguardam e a maior espera no topo, próximo paciente em
+  destaque, CPF mascarado, horário de chegada e tempo de espera de cada um, botão
+  **"Chamar próximo"** e a lista dos já chamados. Atualiza sozinha a cada 10 segundos.
+- **Painel (`/painel`):** TV da sala de espera. Mostra a senha chamada em destaque e as
+  anteriores, sem nome de ninguém. Atualiza a cada 5 segundos.
 
 **Testes: 144 no total** (131 sem banco nem navegador):
 
@@ -169,15 +177,15 @@ e eles falharam.
 **PostgreSQL**, quando a variável `DATABASE_URL` está definida (é o caso do Docker), e
 **memória** quando não está.
 
-- O banco era desejável e é o mais próximo do real: a fila sobrevive a um reinício da API.
 - Mantive a memória como alternativa para quem quiser rodar só com `npm`, sem precisar de
   banco nenhum.
 - As duas implementações seguem o mesmo contrato (`CheckinRepository`), então o
   `CheckinService` não sabe onde os dados estão. Isso também deixou os testes simples: eles
   usam a versão em memória.
 
-A tabela é criada pela própria API ao subir (`CREATE TABLE IF NOT EXISTS checkins`), com uma
-constraint `UNIQUE (dia, cpf)` que impede dois check-ins do mesmo paciente no mesmo dia.
+As tabelas são criadas pela própria API ao subir (`CREATE TABLE IF NOT EXISTS`): `checkins`,
+com as constraints `UNIQUE (dia, cpf)` e `UNIQUE (dia, senha)`, e `senhas_do_dia`, o contador
+de senhas de cada dia.
 
 ## Decisões e dificuldades
 
@@ -247,8 +255,7 @@ constraint `UNIQUE (dia, cpf)` que impede dois check-ins do mesmo paciente no me
 - **Tailwind CSS** para os estilos, com as cores e fontes definidas em um só lugar
   (`web/src/index.css`).
 - **Visual inspirado no site do hospital**: usei a paleta do site (azul-petróleo, dourado,
-  ciano) e a Montserrat, alternativa gratuita à Gotham. **Não usei a logo**: é marca de
-  terceiros e o repositório é público.
+  ciano) e a Montserrat, alternativa gratuita à Gotham.
 - **Atualização da fila a cada 10 s (polling)**: simples e suficiente para a recepção ver
   check-ins de outros totens.
 
@@ -305,7 +312,7 @@ básicos que usei no projeto.
   rechamar e desfazer uma chamada feita por engano, e guichês ("senha 005 → guichê 2").
 - **Atendimento prioritário** (idosos, gestantes e pessoas com deficiência, pela Lei 10.048/2000),
   com senha separada e regra de intercalação. Deixei de fora porque a regra é do hospital.
-- **Voz no painel** (síntese de fala) e atualização em tempo real (SSE/WebSocket).
+- **Voz no painel** (síntese de fala).
 - **Publicar um evento** (RabbitMQ/Kafka/SQS) a cada check-in, para outros sistemas
   reagirem, e atualizar a recepção em tempo real (SSE ou WebSocket) em vez de polling.
 - **Circuit breaker** na chamada ao cadastro: se ele estiver caído, parar de tentar por alguns
@@ -315,7 +322,4 @@ básicos que usei no projeto.
   API devolve o mesmo check-in se receber o id de novo). Com isso, o front poderia repetir o
   pedido com segurança depois de uma falha de rede.
 - Cache curto dos pacientes consultados no cadastro.
-- **Testes de integração** dos endpoints (supertest com o banco) e testes do front com
-  React Testing Library.
-- Documentação da API com Swagger, logs estruturados e uma pipeline de CI rodando lint e
-  testes a cada push.
+- Documentação da API com Swagger e logs estruturados.
